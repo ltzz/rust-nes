@@ -80,13 +80,15 @@ pub fn draw(ctx: &CanvasRenderingContext2d) -> Result<(), JsValue> {
 pub fn set_rom(buf: &mut [u8]) -> String {
     // TODO
     // dbg!(buf);
-    let str = load_cartridge(buf);
+    let rom = load_cartridge(buf);
+    let str = format!("prg_rom {}bytes\nchr_rom {}bytes\n", rom.prg_rom.len(), rom.chr_rom.len());
+    sys::system::Nes::new(rom);
     str
 }
 
-pub fn load_cartridge(buf: &[u8]) -> String{
+pub fn load_cartridge(buf: &[u8]) -> sys::rom::Rom{
     let cartridge = sys::rom::from_array(buf);
-    format!("prg_rom {}bytes\nchr_rom {}bytes\n", cartridge.prg_rom.len(), cartridge.chr_rom.len())
+    cartridge
 }
 
 fn get_image_data() -> Vec<u8> {
