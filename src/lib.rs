@@ -5,6 +5,8 @@ use wasm_bindgen::Clamped;
 use wasm_bindgen::JsCast;
 use web_sys::{CanvasRenderingContext2d, ImageData};
 
+pub mod sys;
+
 fn window() -> web_sys::Window {
     web_sys::window().expect("no global `window` exists")
 }
@@ -75,10 +77,16 @@ pub fn draw(ctx: &CanvasRenderingContext2d) -> Result<(), JsValue> {
 }
 
 #[wasm_bindgen]
-pub fn set_rom(x: &mut [u8]) -> String {
+pub fn set_rom(buf: &mut [u8]) -> String {
     // TODO
-    dbg!(x);
-    "test".to_string()
+    // dbg!(buf);
+    let str = load_cartridge(buf);
+    str
+}
+
+pub fn load_cartridge(buf: &[u8]) -> String{
+    let cartridge = sys::rom::from_array(buf);
+    format!("prg_rom {}bytes\nchr_rom {}bytes\n", cartridge.prg_rom.len(), cartridge.chr_rom.len())
 }
 
 fn get_image_data() -> Vec<u8> {
