@@ -1,5 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
+use sys::rom::Rom;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::Clamped;
 use wasm_bindgen::JsCast;
@@ -23,14 +24,34 @@ fn document() -> web_sys::Document {
         .expect("should have a document on window")
 }
 
+struct StateTest{
+    test_value: i32,
+    test_rom: Option<Rom>
+}
+
+impl StateTest {
+    pub fn new() -> StateTest {
+        StateTest{test_value: 1, test_rom: None}
+    }
+
+    pub fn set_value(&mut self, rom: Rom){
+        self.test_rom = Some(rom);
+    }
+}
+
+static mut testtest: Option<StateTest> = None;
+
 #[wasm_bindgen(start)]
 pub fn run() -> Result<(), JsValue>  {
+    unsafe{
+        testtest = Some(StateTest::new());
+    }
     let f = Rc::new(RefCell::new(None));
     let g = f.clone();
 
     let mut i = 0;
     *g.borrow_mut() = Some(Closure::wrap(Box::new(move || {
-        if i > 300 {
+        if i > 1000 {
 
             // Drop our handle to this closure so that it will get cleaned
             // up once we return.
@@ -57,7 +78,7 @@ pub fn run() -> Result<(), JsValue>  {
             .dyn_into::<web_sys::CanvasRenderingContext2d>()
             .unwrap();
     
-        draw(&context);
+        draw(&context, i);
 
         // Schedule ourself for another requestAnimationFrame callback.
         request_animation_frame(f.borrow().as_ref().unwrap());
@@ -68,12 +89,30 @@ pub fn run() -> Result<(), JsValue>  {
 }
 
 #[wasm_bindgen]
-pub fn draw(ctx: &CanvasRenderingContext2d) -> Result<(), JsValue> {
+pub fn draw(ctx: &CanvasRenderingContext2d, step: i32) -> Result<(), JsValue> {
     let width = 256;
     let height = 256;
-    let mut data = get_image_data();
+    let mut data = get_image_data_demo();
     let data = ImageData::new_with_u8_clamped_array_and_sh(Clamped(&mut data), width as u32, height as u32)?;
-    ctx.put_image_data(&data, 0.0, 0.0)
+    ctx.put_image_data(&data, 0.0, 0.0);
+    ctx.set_fill_style(&JsValue::from("#000000"));
+    unsafe {
+        let test = & testtest;
+        let size = (*test).as_ref().map(|state|{
+            let rom = &state.test_rom;
+            let size_ = (*rom).as_ref().map(|rom| rom.prg_rom.len());
+            match size_ {
+                Some(s) => s,
+                None => 0
+            }
+        });
+        let size = match size {
+            Some(s) => s,
+            None => 0
+        };
+        ctx.fill_text(&size.to_string(), 40.0, 245.0);
+    }
+    ctx.fill_text(&step.to_string(), 10.0, 245.0)
 }
 
 #[wasm_bindgen]
@@ -82,7 +121,15 @@ pub fn set_rom(buf: &mut [u8]) -> String {
     // dbg!(buf);
     let rom = load_cartridge(buf);
     let str = format!("prg_rom {}bytes\nchr_rom {}bytes\n", rom.prg_rom.len(), rom.chr_rom.len());
-    sys::system::Nes::new(rom);
+
+
+    unsafe{
+        let mut option = &mut testtest;
+        let mut test1 = (*option).as_mut().unwrap();
+        test1.set_value(rom);
+    }
+    // sys::system::Nes::new(rom);
+
     str
 }
 
@@ -91,7 +138,7 @@ pub fn load_cartridge(buf: &[u8]) -> sys::rom::Rom{
     cartridge
 }
 
-fn get_image_data() -> Vec<u8> {
+fn get_image_data_demo() -> Vec<u8> {
     let mut data = Vec::new();
 
     for x in 0..256 {
