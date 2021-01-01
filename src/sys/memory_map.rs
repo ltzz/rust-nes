@@ -1,19 +1,21 @@
-use super::system::Nes;
+use super::{ppu::Ppu, rom::Rom};
 
 pub struct MemoryMap {
-    pub wram: Vec<u8>
+    pub rom: Rom,
+    pub wram: Vec<u8>,
+    pub ppu: Ppu
 }
 
 impl MemoryMap {
-    pub fn new() -> MemoryMap {
-        let wram = [0; 0x800].to_vec();
-        MemoryMap{wram}
+    pub fn new(rom: Rom, ppu: Ppu) -> MemoryMap {
+        let wram = vec!(0; 0x800);
+        MemoryMap{rom, wram, ppu}
     }
 
-    pub fn get_from_address(&self, nes: &Nes, address: u32) -> u8{
+    pub fn get_from_address(&self, address: u32) -> u8{
         if 0x0000 <= address && address < 0x2000 {
             //WRAM MIRROR * 3
-            return self.wram[address as usize % 0x800];
+            return self.wram[(address % 0x800) as usize];
         }
         else if address < 0x2008 {
             // ppu i/o
@@ -45,11 +47,11 @@ impl MemoryMap {
         }
         else if address < 0xC000 {
             // prg-rom low
-            return nes.rom.prg_rom[(address as usize - 0x8000) % nes.rom.prg_rom.len()];
+            return self.rom.prg_rom[(address as usize - 0x8000) % self.rom.prg_rom.len()];
         }
         else if address <= 0xFFFF {
             // prg-ram high
-            return nes.rom.prg_rom[(address as usize - 0x8000) % nes.rom.prg_rom.len()];
+            return self.rom.prg_rom[(address as usize - 0x8000) % self.rom.prg_rom.len()];
         }
         else{
             // ppu
@@ -60,17 +62,16 @@ impl MemoryMap {
     pub fn set_from_address(&mut self, address: u32, value: u8) {
         if 0x0000 <= address && address < 0x2000 {
             //WRAM MIRROR * 3
-            let wram_element = &mut self.wram[(address % 0x800) as usize];
-            *wram_element = value;
+            self.wram[(address % 0x800) as usize] = value;
         } else if address < 0x2008 {
-            // // ppu i/o
-            // ppu.ppuReg[address - 0x2000] = value;
-            // if (address == 0x2006) {
-            //     ppu.writePpuAddr();
-            // }
-            // else if(address == 0x2007) {
-            //     ppu.writePPUData();
-            // }
+            // ppu i/o
+            self.ppu.ppu_reg[(address - 0x2000) as usize] = value;
+            if address == 0x2006 {
+                self.ppu.write_ppu_addr();
+            }
+            else if address == 0x2007 {
+                self.ppu.write_ppu_data();
+            }
             // else if( address == 0x2003 ){
             //     final int a = 1;
             // }
@@ -88,25 +89,25 @@ impl MemoryMap {
     }
 
     
-    pub fn get_from_address16(&self, sys: &Nes, address: u32) -> u16{
-        let lower = self.get_from_address(sys, (address + 0) & 0xFFFF) & 0xFF;
-        let upper = self.get_from_address(sys, (address + 1) & 0xFFFF) & 0xFF;
-        let value: u16 = (upper << 8) as u16 | lower as u16;
+    pub fn get_from_address16(&self, address: u32) -> u16{
+        let lower = self.get_from_address(address + 0) & 0xFF;
+        let upper = self.get_from_address(address + 1) & 0xFF;
+        let value: u16 = ((upper as u16) << 8) as u16 | lower as u16;
         return value;
     }
     
-    pub fn get_from_address16_by_address8(&self, sys: &Nes, address: u8) -> u16{
-        let lower = self.get_from_address(sys, ((address + 0) & 0xFF) as u32) & 0xFF;
-        let upper = self.get_from_address(sys, ((address + 1) & 0xFF) as u32) & 0xFF;
-        let value: u16 = (upper << 8) as u16 | lower as u16;
+    pub fn get_from_address16_by_address8(&self, address: u8) -> u16{
+        let lower = self.get_from_address(((address + 0) & 0xFF) as u32) & 0xFF;
+        let upper = self.get_from_address(((address + 1) & 0xFF) as u32) & 0xFF;
+        let value: u16 = ((upper as u16) << 8) as u16 | lower as u16;
         return value;
     }
 
-    pub fn get_from_address_in_page(&self, sys: &Nes, address: u32) -> u16{
+    pub fn get_from_address_in_page(&self, address: u32) -> u16{
         let page = address >> 8;
-        let lower = self.get_from_address(sys, (page << 8) | (address + 0) & 0xFF) & 0xFF;
-        let upper = self.get_from_address(sys, (page << 8) | (address + 1) & 0xFF) & 0xFF;
-        let value: u16 = (upper << 8) as u16 | lower as u16;
+        let lower = self.get_from_address((page << 8) | (address + 0) & 0xFF) & 0xFF;
+        let upper = self.get_from_address((page << 8) | (address + 1) & 0xFF) & 0xFF;
+        let value: u16 = ((upper as u16) << 8) as u16 | lower as u16;
         return value;
     }
 }
