@@ -128,7 +128,7 @@ impl Cpu{
             },
             Addressing::Indirect_Y =>{
                 let tmp_address = self.getIm8(memory_map) & 0xFF;
-                let mut ret_address = memory_map.get_from_address16_by_address8(tmp_address) + (self.reg_y & 0xFF) as u16;
+                let mut ret_address = memory_map.get_from_address16_by_address8(tmp_address).wrapping_add((self.reg_y & 0xFF) as u16);
                 ret_address &= 0xFFFF;
                 ret_address as u32
             },
@@ -178,10 +178,10 @@ impl Cpu{
         }
     }
 
-    pub fn op_TXS(&mut self){
+    pub fn op_txs(&mut self){
         self.reg_s = self.reg_x;
     }
-    pub fn op_TSX(&mut self){
+    pub fn op_tsx(&mut self){
         self.eval_NZ(self.reg_s);
         self.reg_x = self.reg_s;
     }
@@ -193,11 +193,11 @@ impl Cpu{
         self.eval_NZ(self.reg_x);
         self.reg_a = self.reg_x;
     }
-    pub fn op_TYA(&mut self){
+    pub fn op_tya(&mut self){
         self.eval_NZ(self.reg_y);
         self.reg_a = self.reg_y;
     }
-    pub fn op_TAY(&mut self){
+    pub fn op_tay(&mut self){
         self.eval_NZ(self.reg_a);
         self.reg_y = self.reg_a;
     }
@@ -349,17 +349,17 @@ impl Cpu{
         }
     }
 
-    pub fn opLSR(&mut self) {
-        self.reg_a = self.opLSR_impl(self.reg_a);
+    pub fn op_lsr(&mut self) {
+        self.reg_a = self.op_lsr_impl(self.reg_a);
     }
 
     pub fn op_lsr_with_addressing(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
         let mut data: u8 = self.get_operand(addressing, memory_map);
-        data = self.opLSR_impl(data);
+        data = self.op_lsr_impl(data);
         memory_map.set_from_address(self.get_operand_address(addressing, memory_map), data);
     }
 
-    pub fn opLSR_impl(&mut self, mut data: u8) -> u8{
+    pub fn op_lsr_impl(&mut self, mut data: u8) -> u8{
         let carry: u8 = data & 0x01;
         let result_value: u8 = (data & 0xFF) >> 1;
         data = result_value as u8;
@@ -373,17 +373,17 @@ impl Cpu{
         return data;
     }
 
-    pub fn opROR(&mut self) {
-        self.reg_a = self.opROR_impl(self.reg_a);
+    pub fn op_ror(&mut self) {
+        self.reg_a = self.op_ror_impl(self.reg_a);
     }
 
     pub fn op_ror_with_addressing(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
         let mut data: u8 = self.get_operand(addressing, memory_map);
-        data = self.opROR_impl(data);
+        data = self.op_ror_impl(data);
         memory_map.set_from_address(self.get_operand_address(addressing, memory_map), data);
     }
 
-    pub fn opROR_impl(&mut self, mut data: u8) -> u8{
+    pub fn op_ror_impl(&mut self, mut data: u8) -> u8{
         let carry = if self.get_flag_c() {1} else {0};
         let output_carry = data & 0x01;
         let result_value: u8 = (data & 0xFF) >> 1;
@@ -399,16 +399,16 @@ impl Cpu{
         data
     }
 
-    pub fn opROL(&mut self) {
-        self.reg_a = self.opROL_impl(self.reg_a);
+    pub fn op_rol(&mut self) {
+        self.reg_a = self.op_rol_impl(self.reg_a);
     }
     pub fn op_rol_with_addressing(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap) {
         let mut data: u8 = self.get_operand(addressing, memory_map);
-        data = self.opROL_impl(data);
+        data = self.op_rol_impl(data);
         memory_map.set_from_address(self.get_operand_address(addressing, memory_map), data);
     }
 
-    pub fn opROL_impl(&mut self, mut data: u8) -> u8{
+    pub fn op_rol_impl(&mut self, mut data: u8) -> u8{
         let output_carry: u8 = data & 0x80;
         let result_value: u16 = ((data & 0xFF) << 1) as u16;
         data = result_value as u8;
@@ -423,7 +423,7 @@ impl Cpu{
         return data;
     }
 
-    pub fn opASL(&mut self) {
+    pub fn op_asl(&mut self) {
         let result_value: u16 = (((self.reg_a & 0xFF) as u16) << 1) as u16;
         self.reg_a = (result_value) as u8;
         self.eval_NZ(self.reg_a);
@@ -450,7 +450,7 @@ impl Cpu{
         }
     }
 
-    pub fn opINX(&mut self){
+    pub fn op_inx(&mut self){
         self.reg_x = (self.reg_x.wrapping_add(1)) as u8;
         self.eval_NZ(self.reg_x);
     }
@@ -540,7 +540,7 @@ impl Cpu{
         self.reg_x = operand;
     }
 
-    pub fn opBNE(&mut self, memory_map: &MemoryMap){
+    pub fn op_bne(&mut self, memory_map: &MemoryMap){
         let zero_flag: bool = self.get_flag_z();
         if !zero_flag {
             let relative: u8 = self.getIm8(memory_map);
@@ -548,7 +548,7 @@ impl Cpu{
             self.program_counter = (self.program_counter as i32 + relative_ as i32) as u32;
         }
     }
-    pub fn opBPL(&mut self, memory_map: &MemoryMap){
+    pub fn op_bpl(&mut self, memory_map: &MemoryMap){
         let negative_flag: bool = self.get_flag_n();
         if !negative_flag {
             let relative: u8 = self.getIm8(memory_map);
@@ -556,7 +556,7 @@ impl Cpu{
             self.program_counter = (self.program_counter as i32 + relative_ as i32) as u32;
         }
     }
-    pub fn opBCC(&mut self, memory_map: &MemoryMap){
+    pub fn op_bcc(&mut self, memory_map: &MemoryMap){
         let carry_flag: bool = self.get_flag_c();
         if !carry_flag {
             let relative: u8 = self.getIm8(memory_map);
@@ -564,7 +564,7 @@ impl Cpu{
             self.program_counter = (self.program_counter as i32 + relative_ as i32) as u32;
         }
     }
-    pub fn opBCS(&mut self, memory_map: &MemoryMap){
+    pub fn op_bcs(&mut self, memory_map: &MemoryMap){
         let carry_flag: bool = self.get_flag_c();
         if carry_flag {
             let relative: u8 = self.getIm8(memory_map);
@@ -572,7 +572,7 @@ impl Cpu{
             self.program_counter = (self.program_counter as i32 + relative_ as i32) as u32;
         }
     }
-    pub fn opBVS(&mut self, memory_map: &MemoryMap){
+    pub fn op_bvs(&mut self, memory_map: &MemoryMap){
         let overflow_flag: bool = self.get_flag_v();
         if overflow_flag {
             let relative: u8 = self.getIm8(memory_map);
@@ -580,7 +580,7 @@ impl Cpu{
             self.program_counter = (self.program_counter as i32 + relative_ as i32) as u32;
         }
     }
-    pub fn opBVC(&mut self, memory_map: &MemoryMap){
+    pub fn op_bvc(&mut self, memory_map: &MemoryMap){
         let overflow_flag: bool = self.get_flag_v();
         if !overflow_flag {
             let relative: u8 = self.getIm8(memory_map);
@@ -588,7 +588,7 @@ impl Cpu{
             self.program_counter = (self.program_counter as i32 + relative_ as i32) as u32;
         }
     }
-    pub fn opBMI(&mut self, memory_map: &MemoryMap){
+    pub fn op_bmi(&mut self, memory_map: &MemoryMap){
         let negative_flag: bool = self.get_flag_n();
         if negative_flag {
             let relative: u8 = self.getIm8(memory_map);
@@ -596,7 +596,7 @@ impl Cpu{
             self.program_counter = (self.program_counter as i32 + relative_ as i32) as u32;
         }
     }
-    pub fn opBEQ(&mut self, memory_map: &MemoryMap){
+    pub fn op_beq(&mut self, memory_map: &MemoryMap){
         let zero_flag: bool = self.get_flag_z();
         if zero_flag {
             let relative: u8 = self.getIm8(memory_map);
@@ -605,7 +605,7 @@ impl Cpu{
         }
     }
 
-    pub fn opJSR(&mut self, memory_map: &mut MemoryMap){
+    pub fn op_jsr(&mut self, memory_map: &mut MemoryMap){
         let absolute: u16 = self.getIm16(memory_map);
         let return_address = self.program_counter + 2; // この命令の最後のアドレスをpush
         let upper: u8 = ((return_address >> 8) & 0xFF) as u8;
@@ -617,26 +617,26 @@ impl Cpu{
         self.program_counter = absolute as u32;
     }
 
-    pub fn opPHA(&mut self, memory_map: &mut MemoryMap){
+    pub fn op_pha(&mut self, memory_map: &mut MemoryMap){
         let stack_address: u32 = (0x100 as u16 + (self.reg_s & 0xFF) as u16) as u32;
         memory_map.set_from_address(stack_address, self.reg_a);
         self.reg_s = (self.reg_s - 1) as u8;
     }
 
-    pub fn opPHP(&mut self, memory_map: &mut MemoryMap){
+    pub fn op_php(&mut self, memory_map: &mut MemoryMap){
         let stack_address: u32 = (0x100 as u16 + (self.reg_s & 0xFF) as u16) as u32;
         let value = self.reg_p | 0x10; // ファミコンの仕様 PHPによってスタックに格納する状態フラグでは、ブレイクフラグをセット
         memory_map.set_from_address(stack_address, value);
         self.reg_s = (self.reg_s - 1) as u8;
     }
-    pub fn opPLP(&mut self, memory_map: &MemoryMap){
+    pub fn op_plp(&mut self, memory_map: &MemoryMap){
         let stack_address: u32 = (0x100 as u16 + (self.reg_s & 0xFF) as u16 + 1) as u32;
         let mut value = memory_map.get_from_address(stack_address);
         self.set_reg_p(value);
         self.reg_s = (self.reg_s + 1) as u8;
     }
 
-    pub fn opRTS(&mut self, memory_map: &MemoryMap){
+    pub fn op_rts(&mut self, memory_map: &MemoryMap){
         let stack_address: u32 = (0x100 as u16 + (self.reg_s & 0xFF) as u16 + 1) as u32;
         let lower: u8 = memory_map.get_from_address(stack_address);
         let upper: u8 = memory_map.get_from_address(stack_address + 1);
@@ -645,7 +645,7 @@ impl Cpu{
         self.reg_s = (self.reg_s + 2) as u8;
     }
 
-    pub fn opRTI(&mut self, memory_map: &MemoryMap) {
+    pub fn op_rti(&mut self, memory_map: &MemoryMap) {
 
         // Pをpull
         let stack_address_p: u32 = (0x100 as u16 + (self.reg_s & 0xFF) as u16 + 1) as u32;
@@ -909,12 +909,12 @@ impl Cpu{
             0x9A =>
                 // TODO: Sに0を入れているROMがあり、うまく動作しない（あるいは入れる元の計算結果が誤り
             {
-                self.op_TXS();
+                self.op_txs();
                 self.program_counter += 1;
             },
             0xBA =>
             {
-                self.op_TSX();
+                self.op_tsx();
                 self.program_counter += 1;
             },
             0xAA =>
@@ -929,12 +929,12 @@ impl Cpu{
             },
             0x98 =>
             {
-                self.op_TYA();
+                self.op_tya();
                 self.program_counter += 1;
             },
             0xA8 =>
             {
-                self.op_TAY();
+                self.op_tay();
                 self.program_counter += 1;
             },
             0xC0 =>
@@ -1239,12 +1239,12 @@ impl Cpu{
             },
             0x0A =>
             {
-                self.opASL();
+                self.op_asl();
                 self.program_counter += 1;
             },
             0x4A =>
             {
-                self.opLSR();
+                self.op_lsr();
                 self.program_counter += 1;
             },
             0x46 =>
@@ -1269,7 +1269,7 @@ impl Cpu{
             },
             0x6A =>
             {
-                self.opROR();
+                self.op_ror();
                 self.program_counter += 1;
             },
             0x66 =>
@@ -1294,7 +1294,7 @@ impl Cpu{
             },
             0x2A =>
             {
-                self.opROL();
+                self.op_rol();
                 self.program_counter += 1;
             },
             0x26 =>
@@ -1319,7 +1319,7 @@ impl Cpu{
             },
             0xE8 =>
             {
-                self.opINX();
+                self.op_inx();
                 self.program_counter += 1;
             },
             0xC8 =>
@@ -1379,61 +1379,61 @@ impl Cpu{
             },
             0xD0 =>
             {
-                self.opBNE(memory_map);
+                self.op_bne(memory_map);
                 self.program_counter += 2;
             },
             0x10 =>
             {
-                self.opBPL(memory_map);
+                self.op_bpl(memory_map);
                 self.program_counter += 2;
             },
             0x90 =>
             {
-                self.opBCC(memory_map);
+                self.op_bcc(memory_map);
                 self.program_counter += 2;
             },
             0xB0 =>
             {
-                self.opBCS(memory_map);
+                self.op_bcs(memory_map);
                 self.program_counter += 2;
             },
             0x70 =>
             {
-                self.opBVS(memory_map);
+                self.op_bvs(memory_map);
                 self.program_counter += 2;
             },
             0x50 =>
             {
-                self.opBVC(memory_map);
+                self.op_bvc(memory_map);
                 self.program_counter += 2;
             },
             0x30 =>
             {
-                self.opBMI(memory_map);
+                self.op_bmi(memory_map);
                 self.program_counter += 2;
             },
             0xF0 =>
             {
-                self.opBEQ(memory_map);
+                self.op_beq(memory_map);
                 self.program_counter += 2;
             },
             0x20 =>
             {
-                self.opJSR(memory_map);
+                self.op_jsr(memory_map);
             },
             0x48 =>
             {
-                self.opPHA(memory_map);
+                self.op_pha(memory_map);
                 self.program_counter += 1;
             },
             0x08 =>
             {
-                self.opPHP(memory_map);
+                self.op_php(memory_map);
                 self.program_counter += 1;
             },
             0x28 =>
             {
-                self.opPLP(memory_map);
+                self.op_plp(memory_map);
                 self.program_counter += 1;
             },
             0x68 =>
@@ -1443,12 +1443,12 @@ impl Cpu{
             },
             0x60 =>
             {
-                self.opRTS(memory_map);
+                self.op_rts(memory_map);
                 self.program_counter += 1;
             },
             0x40 =>
             {
-                self.opRTI(memory_map);
+                self.op_rti(memory_map);
                 //self.program_counter += 1;
             },
             0x4C =>

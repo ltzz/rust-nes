@@ -260,12 +260,10 @@ mod tests {
             let expect = format!("{} {} {}", pc_expect, reg_a_expect, reg_p_expect);
             let actual = format!("{:04X} A:{:02X} P:{:02X}", sys.cpu.program_counter, sys.cpu.reg_a, sys.cpu.reg_p);
             assert_eq!(expect, actual);
-            if index > 2500 {
+            if index > 3350{
                 break;
             }
             sys.execute();
         }
-
-        // assert!(larger.can_hold(&smaller));
     }
 }
