@@ -249,18 +249,18 @@ mod tests {
             let line_split1: Vec<&str> = line.split_whitespace().collect();
             let pc_expect = line_split1[0].to_string();
             
-            let reA = Regex::new(r"(A:..)").unwrap();
-            let caps = reA.captures(line).unwrap();
-            let regA_expect = caps.get(0).unwrap().as_str().to_string();
+            let regex_a = Regex::new(r"(A:..)").unwrap();
+            let caps = regex_a.captures(line).unwrap();
+            let reg_a_expect = caps.get(0).unwrap().as_str().to_string();
 
-            let reP = Regex::new(r"(P:..)").unwrap();
-            let caps = reP.captures(line).unwrap();
-            let regP_expect = caps.get(0).unwrap().as_str().to_string();
+            let regex_p = Regex::new(r"(P:..)").unwrap();
+            let caps = regex_p.captures(line).unwrap();
+            let reg_p_expect = caps.get(0).unwrap().as_str().to_string();
 
-            let expect = format!("{} {} {}", pc_expect, regA_expect, regP_expect);
+            let expect = format!("{} {} {}", pc_expect, reg_a_expect, reg_p_expect);
             let actual = format!("{:04X} A:{:02X} P:{:02X}", sys.cpu.program_counter, sys.cpu.reg_a, sys.cpu.reg_p);
             assert_eq!(expect, actual);
-            if index > 1000 {
+            if index > 2500 {
                 break;
             }
             sys.execute();

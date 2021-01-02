@@ -98,7 +98,7 @@ impl MemoryMap {
     
     pub fn get_from_address16_by_address8(&self, address: u8) -> u16{
         let lower = self.get_from_address(((address + 0) & 0xFF) as u32) & 0xFF;
-        let upper = self.get_from_address(((address + 1) & 0xFF) as u32) & 0xFF;
+        let upper = self.get_from_address(((address.wrapping_add(1)) & 0xFF) as u32) & 0xFF;
         let value: u16 = ((upper as u16) << 8) as u16 | lower as u16;
         return value;
     }

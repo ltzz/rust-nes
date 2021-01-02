@@ -48,41 +48,41 @@ impl Cpu{
         self.interpret(memory_map.get_from_address(self.program_counter), memory_map);
     }
 
-    pub fn set_flagI(&mut self, value: bool){
+    pub fn set_flag_i(&mut self, value: bool){
         self.setP(value, 2);
     }
-    pub fn set_flagB(&mut self, value: bool){
+    pub fn set_flag_b(&mut self, value: bool){
         self.setP(value, 4);
     }
 
-    pub fn set_flagN(&mut self, value: bool){
+    pub fn set_flag_n(&mut self, value: bool){
         self.setP(value, 7);
     }
-    pub fn get_flagN(&self) -> bool{
+    pub fn get_flag_n(&self) -> bool{
         let negative_flag: bool = !((self.reg_p & 0x80) == 0);
         return negative_flag;
     }
 
-    pub fn set_flagZ(&mut self, value: bool){
+    pub fn set_flag_z(&mut self, value: bool){
         self.setP(value, 1);
     }
-    pub fn get_flagZ(&self) -> bool{
+    pub fn get_flag_z(&self) -> bool{
         let zero_flag: bool = (self.reg_p & 0x02) != 0;
         return zero_flag;
     }
 
-    pub fn set_flagC(&mut self, value: bool){
+    pub fn set_flag_c(&mut self, value: bool){
         self.setP(value, 0);
     }
-    pub fn get_flagC(&self) -> bool{
+    pub fn get_flag_c(&self) -> bool{
         let carry_flag : bool = !((self.reg_p & 0x01) == 0);
         return carry_flag;
     }
 
-    pub fn set_flagV(&mut self, value: bool){
+    pub fn set_flag_v(&mut self, value: bool){
         self.setP(value, 6);
     }
-    pub fn get_flagV(&self) -> bool{
+    pub fn get_flag_v(&self) -> bool{
         let overflow_flag: bool = !((self.reg_p & 0x40) == 0);
         return overflow_flag;
     }
@@ -137,7 +137,7 @@ impl Cpu{
         return address;
     }
 
-    pub fn getOperand(&self, addressing: &Addressing, memory_map: &MemoryMap) -> u8{
+    pub fn get_operand(&self, addressing: &Addressing, memory_map: &MemoryMap) -> u8{
         let data: u8 = match addressing{
             Addressing::Immediate =>
                 self.getIm8(memory_map),
@@ -166,15 +166,15 @@ impl Cpu{
     
     pub fn eval_NZ(&mut self, data: u8){
         if (data & 0xFF) < 128 {
-            self.set_flagN(false);
+            self.set_flag_n(false);
         }else{
-            self.set_flagN(true);
+            self.set_flag_n(true);
         }
         if data == 0 {
-            self.set_flagZ(true);
+            self.set_flag_z(true);
         }
         else {
-            self.set_flagZ(false);
+            self.set_flag_z(false);
         }
     }
 
@@ -202,130 +202,130 @@ impl Cpu{
         self.reg_y = self.reg_a;
     }
 
-    pub fn op_CPX(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
-        let value:u8 = self.getOperand(addressing, memory_map);
-        self.setRegAtCompare(self.reg_x, value);
+    pub fn op_cpx(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
+        let value:u8 = self.get_operand(addressing, memory_map);
+        self.set_reg_at_compare(self.reg_x, value);
     }
 
-    pub fn op_CPY(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
-        let value:u8 = self.getOperand(addressing, memory_map);
-        self.setRegAtCompare(self.reg_y, value);
+    pub fn op_cpy(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
+        let value:u8 = self.get_operand(addressing, memory_map);
+        self.set_reg_at_compare(self.reg_y, value);
     }
 
-    pub fn op_CMP(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
-        let value:u8 = self.getOperand(addressing, memory_map);
-        self.setRegAtCompare(self.reg_a, value);
+    pub fn op_cmp(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
+        let value:u8 = self.get_operand(addressing, memory_map);
+        self.set_reg_at_compare(self.reg_a, value);
     }
 
-    pub fn op_DCM(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
-        let value:u8 = self.getOperand(addressing, memory_map);
+    pub fn op_dcm(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
+        let value:u8 = self.get_operand(addressing, memory_map);
         let result_value:u8 = value - 1;
         memory_map.set_from_address(self.get_operand_address(addressing, memory_map), result_value);
-        self.setRegAtCompare(self.reg_a, result_value);
+        self.set_reg_at_compare(self.reg_a, result_value);
     }
 
-    pub fn op_ISC(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
-        let value: u8 = self.getOperand(addressing, memory_map);
+    pub fn op_isc(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
+        let value: u8 = self.get_operand(addressing, memory_map);
         let result_value: u8 = value + 1;
         memory_map.set_from_address(self.get_operand_address(addressing, memory_map), result_value);
-        self.opSBC_impl(result_value);
+        self.op_sbc_impl(result_value);
     }
 
 
-    pub fn setRegAtCompare(&mut self, reg: u8, value: u8){
+    pub fn set_reg_at_compare(&mut self, reg: u8, value: u8){
         let reg_value = reg & 0xFF;
         let target_value = value & 0xFF;
         if reg_value >= target_value {
-            self.set_flagC(true);
+            self.set_flag_c(true);
         }else{
-            self.set_flagC(false);
+            self.set_flag_c(false);
         }
         if reg_value == target_value {
-            self.set_flagZ(true);
+            self.set_flag_z(true);
         }else{
-            self.set_flagZ(false);
+            self.set_flag_z(false);
         }
         if ((reg_value.wrapping_sub(target_value)) & 0x80) > 0 {
-            self.set_flagN(true);
+            self.set_flag_n(true);
         }else{
-            self.set_flagN(false);
+            self.set_flag_n(false);
         }
     }
 
-    pub fn opBIT(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
+    pub fn op_bit(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
         let address = self.get_operand_address(addressing, memory_map);
         let value = memory_map.get_from_address(address);
         if (value & 0x80) > 0 {
-            self.set_flagN(true);
+            self.set_flag_n(true);
         }
         else{
-            self.set_flagN(false);
+            self.set_flag_n(false);
         }
         if (value & 0x40) > 0 {
-            self.set_flagV(true);
+            self.set_flag_v(true);
         }
         else{
-            self.set_flagV(false);
+            self.set_flag_v(false);
         }
         if (self.reg_a & value) == 0 { // TODO: ロジック確認してないので要確認
-            self.set_flagZ(true);
+            self.set_flag_z(true);
         }
         else{
-            self.set_flagZ(false);
+            self.set_flag_z(false);
         }
     }
 
 
-    pub fn opAND(&mut self, addressing: &Addressing, memory_map: &MemoryMap) {
-        let value = self.getOperand(addressing, memory_map);
+    pub fn op_and(&mut self, addressing: &Addressing, memory_map: &MemoryMap) {
+        let value = self.get_operand(addressing, memory_map);
         let result_value = self.reg_a & value;
         self.reg_a = result_value;
         self.eval_NZ(self.reg_a);
     }
 
-    pub fn opEOR(&mut self, addressing: &Addressing, memory_map: &MemoryMap) {
-        let value = self.getOperand(addressing, memory_map);
+    pub fn op_eor(&mut self, addressing: &Addressing, memory_map: &MemoryMap) {
+        let value = self.get_operand(addressing, memory_map);
         let result_value = self.reg_a ^ value;
         self.reg_a = result_value;
         self.eval_NZ(self.reg_a);
     }
 
-    pub fn opORA(&mut self, addressing: &Addressing, memory_map: &MemoryMap) {
-        let value = self.getOperand(addressing, memory_map);
+    pub fn op_ora(&mut self, addressing: &Addressing, memory_map: &MemoryMap) {
+        let value = self.get_operand(addressing, memory_map);
         let result_value = self.reg_a | value;
         self.reg_a = result_value;
         self.eval_NZ(self.reg_a);
     }
 
 
-    pub fn opADC(&mut self, addressing: &Addressing, memory_map: &MemoryMap) {
-        let value = self.getOperand(addressing, memory_map);
+    pub fn op_adc(&mut self, addressing: &Addressing, memory_map: &MemoryMap) {
+        let value = self.get_operand(addressing, memory_map);
         let carry = self.reg_p & 0x01;
         let result_value: u16 = (self.reg_a & 0xFF) as u16 + (value & 0xFF) as u16 + carry as u16;
-        let regA_old = self.reg_a;
+        let reg_a_old = self.reg_a;
         self.reg_a = (result_value & 0xFF).try_into().unwrap();
         self.eval_NZ(self.reg_a);
         if result_value >= 0x100 {
-            self.set_flagC(true);
+            self.set_flag_c(true);
         }
         else{
-            self.set_flagC(false);
+            self.set_flag_c(false);
         }
         let result_value_byte: u8 = (result_value & 0xFF).try_into().unwrap();
-        if ((result_value_byte ^ value) & (result_value_byte ^ regA_old) & 0x80) !=0 {
-            self.set_flagV(true);
+        if ((result_value_byte ^ value) & (result_value_byte ^ reg_a_old) & 0x80) !=0 {
+            self.set_flag_v(true);
         }
         else {
-            self.set_flagV(false);
+            self.set_flag_v(false);
         }
     }
 
-    pub fn opSBC(&mut self, addressing: &Addressing, memory_map: &MemoryMap) {
-        let value = self.getOperand(addressing, memory_map);
-        self.opSBC_impl(value);
+    pub fn op_sbc(&mut self, addressing: &Addressing, memory_map: &MemoryMap) {
+        let value = self.get_operand(addressing, memory_map);
+        self.op_sbc_impl(value);
     }
 
-    pub fn opSBC_impl(&mut self, value: u8){
+    pub fn op_sbc_impl(&mut self, value: u8){
         let carry = self.reg_p & 0x01;
         let not_carry: u8 = if carry > 0 {0} else {1};
         let result_value: i32 = (self.reg_a & 0xFF) as i32 - value as  i32 - not_carry as i32;
@@ -333,19 +333,19 @@ impl Cpu{
         self.reg_a = (result_value & 0xFF) as u8;
         self.eval_NZ(self.reg_a);
         if result_value < 0 { // TODO: ロジック確認してないので要確認
-            self.set_flagC(false);
+            self.set_flag_c(false);
         }
         else{
-            self.set_flagC(true);
+            self.set_flag_c(true);
         }
 
         let result_value_u8 = (result_value & 0xFF) as u8;
         let borrowed_value: u8 = (((value ^ 0xFF) as u16 + 0x100 as u16) & 0xFF).try_into().unwrap();
         if ((result_value_u8 ^ borrowed_value) & (result_value_u8 ^ regA_old) & 0x80) > 0 {
-            self.set_flagV(true);
+            self.set_flag_v(true);
         }
         else {
-            self.set_flagV(false);
+            self.set_flag_v(false);
         }
     }
 
@@ -353,8 +353,8 @@ impl Cpu{
         self.reg_a = self.opLSR_impl(self.reg_a);
     }
 
-    pub fn opLSR_with_addressing(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
-        let mut data: u8 = self.getOperand(addressing, memory_map);
+    pub fn op_lsr_with_addressing(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
+        let mut data: u8 = self.get_operand(addressing, memory_map);
         data = self.opLSR_impl(data);
         memory_map.set_from_address(self.get_operand_address(addressing, memory_map), data);
     }
@@ -365,10 +365,10 @@ impl Cpu{
         data = result_value as u8;
         self.eval_NZ(data);
         if carry > 0 { // TODO: ロジック確認してないので要確認
-            self.set_flagC(true);
+            self.set_flag_c(true);
         }
         else{
-            self.set_flagC(false);
+            self.set_flag_c(false);
         }
         return data;
     }
@@ -377,24 +377,24 @@ impl Cpu{
         self.reg_a = self.opROR_impl(self.reg_a);
     }
 
-    pub fn opROR_with_addressing(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
-        let mut data: u8 = self.getOperand(addressing, memory_map);
+    pub fn op_ror_with_addressing(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
+        let mut data: u8 = self.get_operand(addressing, memory_map);
         data = self.opROR_impl(data);
         memory_map.set_from_address(self.get_operand_address(addressing, memory_map), data);
     }
 
     pub fn opROR_impl(&mut self, mut data: u8) -> u8{
-        let carry = if self.get_flagC() {1} else {0};
+        let carry = if self.get_flag_c() {1} else {0};
         let output_carry = data & 0x01;
         let result_value: u8 = (data & 0xFF) >> 1;
         data = result_value as u8;
         data |= carry << 7;
         self.eval_NZ(data);
         if output_carry > 0 { // TODO: ロジック確認してないので要確認
-            self.set_flagC(true);
+            self.set_flag_c(true);
         }
         else{
-            self.set_flagC(false);
+            self.set_flag_c(false);
         }
         data
     }
@@ -402,8 +402,8 @@ impl Cpu{
     pub fn opROL(&mut self) {
         self.reg_a = self.opROL_impl(self.reg_a);
     }
-    pub fn opROL_with_addressing(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap) {
-        let mut data: u8 = self.getOperand(addressing, memory_map);
+    pub fn op_rol_with_addressing(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap) {
+        let mut data: u8 = self.get_operand(addressing, memory_map);
         data = self.opROL_impl(data);
         memory_map.set_from_address(self.get_operand_address(addressing, memory_map), data);
     }
@@ -412,41 +412,41 @@ impl Cpu{
         let output_carry: u8 = data & 0x80;
         let result_value: u16 = ((data & 0xFF) << 1) as u16;
         data = result_value as u8;
-        data |= if self.get_flagC() {0x01} else {0x00};
+        data |= if self.get_flag_c() {0x01} else {0x00};
         self.eval_NZ(data);
         if output_carry > 0 { // TODO: ロジック確認してないので要確認
-            self.set_flagC(true);
+            self.set_flag_c(true);
         }
         else{
-            self.set_flagC(false);
+            self.set_flag_c(false);
         }
         return data;
     }
 
     pub fn opASL(&mut self) {
-        let result_value: u16 = ((self.reg_a & 0xFF) << 1) as u16;
+        let result_value: u16 = (((self.reg_a & 0xFF) as u16) << 1) as u16;
         self.reg_a = (result_value) as u8;
         self.eval_NZ(self.reg_a);
         if result_value >= 0x100 { // TODO: ロジック確認してないので要確認
-            self.set_flagC(true);
+            self.set_flag_c(true);
         }
         else{
-            self.set_flagC(false);
+            self.set_flag_c(false);
         }
     }
 
-    pub fn opASL_with_addressing(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap) {
+    pub fn op_asl_with_addressing(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap) {
         let address: u32 = self.get_operand_address(addressing, memory_map);
-        let mut value: u8 = memory_map.get_from_address(address);
-        let result_value: u16 = ((value & 0xFF) << 1) as u16;
-        value = (result_value) as u8;
-        memory_map.set_from_address(address, value);
-        self.eval_NZ(value);
+        let value: u8 = memory_map.get_from_address(address);
+        let result_value: u16 = (((value & 0xFF) as u16) << 1) as u16;
+        let res_value8 = (result_value) as u8;
+        memory_map.set_from_address(address, res_value8);
+        self.eval_NZ(res_value8);
         if result_value >= 0x100 { // TODO: ロジック確認してないので要確認
-            self.set_flagC(true);
+            self.set_flag_c(true);
         }
         else{
-            self.set_flagC(false);
+            self.set_flag_c(false);
         }
     }
 
@@ -455,7 +455,7 @@ impl Cpu{
         self.eval_NZ(self.reg_x);
     }
 
-    pub fn opINC(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
+    pub fn op_inc(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
         let address: u32 = self.get_operand_address(addressing, memory_map);
         let mut value: u8 = memory_map.get_from_address(address);
         value = (value.wrapping_add(1)) as u8;
@@ -463,7 +463,7 @@ impl Cpu{
         self.eval_NZ(value);
     }
 
-    pub fn opDEC(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
+    pub fn op_dec(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
         let address: u32 = self.get_operand_address(addressing, memory_map);
         let mut value: u8 = memory_map.get_from_address(address);
         value = (value.wrapping_sub(1)) as u8;
@@ -471,17 +471,17 @@ impl Cpu{
         self.eval_NZ(value);
     }
 
-    pub fn opINY(&mut self){
+    pub fn op_iny(&mut self){
         self.reg_y = (self.reg_y.wrapping_add(1)) as u8;
         self.eval_NZ(self.reg_y);
     }
 
-    pub fn opDEX(&mut self){
+    pub fn op_dex(&mut self){
         self.reg_x = (self.reg_x.wrapping_sub(1)) as u8;
         self.eval_NZ(self.reg_x);
     }
 
-    pub fn opDEY(&mut self){
+    pub fn op_dey(&mut self){
         self.reg_y = (self.reg_y.wrapping_sub(1)) as u8;
         self.eval_NZ(self.reg_y);
     }
@@ -495,53 +495,53 @@ impl Cpu{
     pub fn op_CLV(&mut self){
         self.reg_p = (self.reg_p & 0xBF) as u8;
     }
-    pub fn op_SEC(&mut self){
+    pub fn op_sec(&mut self){
         self.reg_p = (self.reg_p | 0x01) as u8;
     }
 
-    pub fn op_SED(&mut self){
+    pub fn op_sed(&mut self){
         self.reg_p = (self.reg_p | 0x08) as u8;
     }
 
-    pub fn opSTA(&self, addressing: &Addressing, memory_map: &mut MemoryMap){
+    pub fn op_sta(&self, addressing: &Addressing, memory_map: &mut MemoryMap){
         memory_map.set_from_address(self.get_operand_address(addressing, memory_map), self.reg_a);
     }
 
-    pub fn opSTX(&self, addressing: &Addressing, memory_map: &mut MemoryMap){
+    pub fn op_stx(&self, addressing: &Addressing, memory_map: &mut MemoryMap){
         memory_map.set_from_address(self.get_operand_address(addressing, memory_map), self.reg_x);
     }
 
-    pub fn op_STY(&self, addressing: &Addressing, memory_map: &mut MemoryMap){
+    pub fn op_sty(&self, addressing: &Addressing, memory_map: &mut MemoryMap){
         memory_map.set_from_address(self.get_operand_address(addressing, memory_map), self.reg_y);
     }
-    pub fn op_SAX(&self, addressing: &Addressing, memory_map: &mut MemoryMap){
+    pub fn op_sax(&self, addressing: &Addressing, memory_map: &mut MemoryMap){
         memory_map.set_from_address(self.get_operand_address(addressing, memory_map), (self.reg_a & self.reg_x) as u8);
     }
 
-    pub fn opLDA(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
-        let operand: u8 = self.getOperand(addressing, memory_map);
+    pub fn op_lda(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
+        let operand: u8 = self.get_operand(addressing, memory_map);
         self.eval_NZ(operand);
         self.reg_a = operand;
     }
-    pub fn op_LDX(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
-        let operand: u8 = self.getOperand(addressing, memory_map);
+    pub fn op_ldx(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
+        let operand: u8 = self.get_operand(addressing, memory_map);
         self.eval_NZ(operand);
         self.reg_x = operand;
     }
-    pub fn opLDY(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
-        let operand: u8 = self.getOperand(addressing, memory_map);
+    pub fn op_ldy(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
+        let operand: u8 = self.get_operand(addressing, memory_map);
         self.eval_NZ(operand);
         self.reg_y = operand;
     }
-    pub fn opLAX(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
-        let operand: u8 = self.getOperand(addressing, memory_map);
+    pub fn op_lax(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
+        let operand: u8 = self.get_operand(addressing, memory_map);
         self.eval_NZ(operand);
         self.reg_a = operand;
         self.reg_x = operand;
     }
 
     pub fn opBNE(&mut self, memory_map: &MemoryMap){
-        let zero_flag: bool = self.get_flagZ();
+        let zero_flag: bool = self.get_flag_z();
         if !zero_flag {
             let relative: u8 = self.getIm8(memory_map);
             let relative_ = if relative > 0x80 {relative as i16 - 0x100 as i16} else {relative as i16};
@@ -549,7 +549,7 @@ impl Cpu{
         }
     }
     pub fn opBPL(&mut self, memory_map: &MemoryMap){
-        let negative_flag: bool = self.get_flagN();
+        let negative_flag: bool = self.get_flag_n();
         if !negative_flag {
             let relative: u8 = self.getIm8(memory_map);
             let relative_ = if relative > 0x80 {relative as i16 - 0x100 as i16} else {relative as i16};
@@ -557,7 +557,7 @@ impl Cpu{
         }
     }
     pub fn opBCC(&mut self, memory_map: &MemoryMap){
-        let carry_flag: bool = self.get_flagC();
+        let carry_flag: bool = self.get_flag_c();
         if !carry_flag {
             let relative: u8 = self.getIm8(memory_map);
             let relative_ = if relative > 0x80 {relative as i16 - 0x100 as i16} else {relative as i16};
@@ -565,7 +565,7 @@ impl Cpu{
         }
     }
     pub fn opBCS(&mut self, memory_map: &MemoryMap){
-        let carry_flag: bool = self.get_flagC();
+        let carry_flag: bool = self.get_flag_c();
         if carry_flag {
             let relative: u8 = self.getIm8(memory_map);
             let relative_ = if relative > 0x80 {relative as i16 - 0x100 as i16} else {relative as i16};
@@ -573,7 +573,7 @@ impl Cpu{
         }
     }
     pub fn opBVS(&mut self, memory_map: &MemoryMap){
-        let overflow_flag: bool = self.get_flagV();
+        let overflow_flag: bool = self.get_flag_v();
         if overflow_flag {
             let relative: u8 = self.getIm8(memory_map);
             let relative_ = if relative > 0x80 {relative as i16 - 0x100 as i16} else {relative as i16};
@@ -581,7 +581,7 @@ impl Cpu{
         }
     }
     pub fn opBVC(&mut self, memory_map: &MemoryMap){
-        let overflow_flag: bool = self.get_flagV();
+        let overflow_flag: bool = self.get_flag_v();
         if !overflow_flag {
             let relative: u8 = self.getIm8(memory_map);
             let relative_ = if relative > 0x80 {relative as i16 - 0x100 as i16} else {relative as i16};
@@ -589,7 +589,7 @@ impl Cpu{
         }
     }
     pub fn opBMI(&mut self, memory_map: &MemoryMap){
-        let negative_flag: bool = self.get_flagN();
+        let negative_flag: bool = self.get_flag_n();
         if negative_flag {
             let relative: u8 = self.getIm8(memory_map);
             let relative_ = if relative > 0x80 {relative as i16 - 0x100 as i16} else {relative as i16};
@@ -597,7 +597,7 @@ impl Cpu{
         }
     }
     pub fn opBEQ(&mut self, memory_map: &MemoryMap){
-        let zero_flag: bool = self.get_flagZ();
+        let zero_flag: bool = self.get_flag_z();
         if zero_flag {
             let relative: u8 = self.getIm8(memory_map);
             let relative_ = if relative > 0x80 {relative as i16 - 0x100 as i16} else {relative as i16};
@@ -632,10 +632,7 @@ impl Cpu{
     pub fn opPLP(&mut self, memory_map: &MemoryMap){
         let stack_address: u32 = (0x100 as u16 + (self.reg_s & 0xFF) as u16 + 1) as u32;
         let mut value = memory_map.get_from_address(stack_address);
-        value = value & 0xEF | 0x20;
-        // bit4: ブレイクフラグは実際には存在しないためPへのセット時クリア
-        // bit5: Rフラグはは常にセット
-        self.reg_p = value;
+        self.set_reg_p(value);
         self.reg_s = (self.reg_s + 1) as u8;
     }
 
@@ -652,7 +649,8 @@ impl Cpu{
 
         // Pをpull
         let stack_address_p: u32 = (0x100 as u16 + (self.reg_s & 0xFF) as u16 + 1) as u32;
-        self.reg_p = memory_map.get_from_address(stack_address_p);
+        let value = memory_map.get_from_address(stack_address_p);
+        self.set_reg_p(value);
         self.reg_s = (self.reg_s + 1) as u8;
 
         // プログラムカウンタをpull
@@ -665,7 +663,7 @@ impl Cpu{
 
     }
 
-    pub fn opPLA(&mut self, memory_map: &MemoryMap){
+    pub fn op_pla(&mut self, memory_map: &MemoryMap){
         let address: u32 = (0x100 as u16 + (self.reg_s & 0xFF) as u16 + 1) as u32;
         let value: u8 = memory_map.get_from_address(address);
         self.reg_a = value;
@@ -673,9 +671,9 @@ impl Cpu{
         self.reg_s = (self.reg_s + 1) as u8;
     }
 
-    pub fn opBRK(&mut self){
-        self.set_flagI(true);
-        self.set_flagB(true);
+    pub fn op_brk(&mut self){
+        self.set_flag_i(true);
+        self.set_flag_b(true);
     }
 
     pub fn opJMP_Abs(&mut self, memory_map: &MemoryMap){
@@ -687,218 +685,225 @@ impl Cpu{
         self.program_counter = address;
     }
 
+    fn set_reg_p(&mut self, value: u8){
+        let value = value & 0xEF | 0x20;
+        // bit4: ブレイクフラグは実際には存在しないためPへのセット時クリア
+        // bit5: Rフラグはは常にセット
+        self.reg_p = value;
+    }
+
     pub fn interpret(&mut self, opcode: u8, memory_map: &mut MemoryMap){
 
         let opcode: u8 = opcode & 0xFF;
         match(opcode){
             0xA2 =>//LDX(Immediate):メモリからXにロード(2バイト/2サイクル)
             {
-                self.op_LDX(&Addressing::Immediate, memory_map);
+                self.op_ldx(&Addressing::Immediate, memory_map);
                 self.program_counter += 2;
             },
             0xA6 =>//LDX(Zeropage):メモリからXにロード(2バイト/3サイクル)
             {
-                self.op_LDX(&Addressing::ZeroPage, memory_map);
+                self.op_ldx(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0xB6 =>//LDX(Zeropage,Y):メモリからXにロード(2バイト/4サイクル)
             {
-                self.op_LDX(&Addressing::ZeroPageY, memory_map);
+                self.op_ldx(&Addressing::ZeroPageY, memory_map);
                 self.program_counter += 2;
             },
             0xAE =>//LDX(Absolute):メモリからXにロード(3バイト/4サイクル)
             {
-                self.op_LDX(&Addressing::Absolute, memory_map);
+                self.op_ldx(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             }
             0xBE =>//LDX(Absolute, Y):メモリからXにロード(3バイト/4サイクル)
             {
-                self.op_LDX(&Addressing::AbsoluteY, memory_map);
+                self.op_ldx(&Addressing::AbsoluteY, memory_map);
                 self.program_counter += 3;
             }
             0x78 =>//SEI:IRQ割り込みの禁止(1バイト/2サイクル)
             {
-                self.set_flagI(true);
+                self.set_flag_i(true);
                 self.program_counter += 1;
             },
             0xA9 =>//LDA(Immediate):メモリからAにロード(2バイト/2サイクル)
             {
-                self.opLDA(&Addressing::Immediate, memory_map);
+                self.op_lda(&Addressing::Immediate, memory_map);
                 self.program_counter += 2;
             },
             0xA5 =>//LDA(Zeropage):メモリからAにロード(2バイト/3サイクル)
             {
-                self.opLDA(&Addressing::ZeroPage, memory_map);
+                self.op_lda(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0xB5 =>//LDA(ZeropageX):メモリからAにロード(2バイト/4サイクル)
             {
-                self.opLDA(&Addressing::ZeroPageX, memory_map);
+                self.op_lda(&Addressing::ZeroPageX, memory_map);
                 self.program_counter += 2;
             },
             0xAD =>//LDA(Absolute):メモリからAにロード(3バイト/4サイクル)
             {
-                self.opLDA(&Addressing::Absolute, memory_map);
+                self.op_lda(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             },
             0xBD =>//LDA(AbsoluteX):メモリからAにロード(3バイト/4サイクル)
             {
-                self.opLDA(&Addressing::AbsoluteX, memory_map);
+                self.op_lda(&Addressing::AbsoluteX, memory_map);
                 self.program_counter += 3;
             },
             0xB9 =>//LDA(AbsoluteY):メモリからAにロード(3バイト/4サイクル)
             {
-                self.opLDA(&Addressing::AbsoluteY, memory_map);
+                self.op_lda(&Addressing::AbsoluteY, memory_map);
                 self.program_counter += 3;
             },
             0xA1 =>//LDA(IndirectX):メモリからAにロード(2バイト/6サイクル)
             {
-                self.opLDA(&Addressing::IndirectX, memory_map);
+                self.op_lda(&Addressing::IndirectX, memory_map);
                 self.program_counter += 2;
             },
             0xB1 =>//LDA(Indirect_Y):メモリからAにロード(2バイト/5サイクル)
             {
-                self.opLDA(&Addressing::Indirect_Y, memory_map);
+                self.op_lda(&Addressing::Indirect_Y, memory_map);
                 self.program_counter += 2;
             },
             0xA0 =>//LDY(Immediate):メモリからYにロード(2バイト/2サイクル)
             {
-                self.opLDY(&Addressing::Immediate, memory_map);
+                self.op_ldy(&Addressing::Immediate, memory_map);
                 self.program_counter += 2;
             },
             0xA4 =>//LDY(ZeroPage):メモリからYにロード(2バイト/3サイクル)
             {
-                self.opLDY(&Addressing::ZeroPage, memory_map);
+                self.op_ldy(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0xB4 =>//LDY(ZeroPageX):メモリからYにロード(2バイト/4サイクル)
             {
-                self.opLDY(&Addressing::ZeroPageX, memory_map);
+                self.op_ldy(&Addressing::ZeroPageX, memory_map);
                 self.program_counter += 2;
             },
             0xAC =>//LDY(Absolute):メモリからAにロード(3バイト/4サイクル)
             {
-                self.opLDY(&Addressing::Absolute, memory_map);
+                self.op_ldy(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             },
             0xBC =>//LDY(Absolute, X):メモリからAにロード(3バイト/4サイクル)
             {
-                self.opLDY(&Addressing::AbsoluteX, memory_map);
+                self.op_ldy(&Addressing::AbsoluteX, memory_map);
                 self.program_counter += 3;
             },
             0xA7 => // LAX ※拡張命令
             {
-                self.opLAX(&Addressing::ZeroPage, memory_map);
+                self.op_lax(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0xB7 => // LAX ※拡張命令
             {
-                self.opLAX(&Addressing::ZeroPageY, memory_map);
+                self.op_lax(&Addressing::ZeroPageY, memory_map);
                 self.program_counter += 2;
             },
             0xAF => // LAX ※拡張命令
             {
-                self.opLAX(&Addressing::Absolute, memory_map);
+                self.op_lax(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             },
             0xBF => // LAX ※拡張命令
             {
-                self.opLAX(&Addressing::AbsoluteY, memory_map);
+                self.op_lax(&Addressing::AbsoluteY, memory_map);
                 self.program_counter += 3;
             },
             0xA3 => // LAX ※拡張命令
             {
-                self.opLAX(&Addressing::IndirectX, memory_map);
+                self.op_lax(&Addressing::IndirectX, memory_map);
                 self.program_counter += 2;
             },
             0xB3 => // LAX ※拡張命令
             {
-                self.opLAX(&Addressing::Indirect_Y, memory_map);
+                self.op_lax(&Addressing::Indirect_Y, memory_map);
                 self.program_counter += 2;
             },
             0x85 =>//STA(Zeropage):Aからメモリにストア(2バイト/3サイクル)
             {
-                self.opSTA(&Addressing::ZeroPage, memory_map);
+                self.op_sta(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0x95 =>//STA(ZeropageX):Aからメモリにストア(2バイト/4サイクル)
             {
-                self.opSTA(&Addressing::ZeroPageX, memory_map);
+                self.op_sta(&Addressing::ZeroPageX, memory_map);
                 self.program_counter += 2;
             },
             0x8D =>//STA(Absolute):Aからメモリにストア(3バイト/4サイクル)
             {
-                self.opSTA(&Addressing::Absolute, memory_map);
+                self.op_sta(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             },
             0x9D =>//STA(AbsoluteX):Aからメモリにストア(3バイト/5サイクル)
             {
-                self.opSTA(&Addressing::AbsoluteX, memory_map);
+                self.op_sta(&Addressing::AbsoluteX, memory_map);
                 self.program_counter += 3;
             },
             0x99 =>//STA(AbsoluteY):Aからメモリにストア(3バイト/5サイクル)
             {
-                self.opSTA(&Addressing::AbsoluteY, memory_map);
+                self.op_sta(&Addressing::AbsoluteY, memory_map);
                 self.program_counter += 3;
             },
             0x91 =>//STA(Indirect_Y):Aからメモリにストア(2バイト/6サイクル)
             {
-                self.opSTA(&Addressing::Indirect_Y, memory_map);
+                self.op_sta(&Addressing::Indirect_Y, memory_map);
                 self.program_counter += 2;
             },
             0x81 =>//STA(Indirect,X):Aからメモリにストア(2バイト/6サイクル)
             {
-                self.opSTA(&Addressing::IndirectX, memory_map);
+                self.op_sta(&Addressing::IndirectX, memory_map);
                 self.program_counter += 2;
             },
             0x86 =>//STX(Zeropage):Xからメモリにストア(2バイト/3サイクル)
             {
-                self.opSTX(&Addressing::ZeroPage, memory_map);
+                self.op_stx(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0x96 =>//STX(Zeropage,Y):Xからメモリにストア(2バイト/4サイクル)
             {
-                self.opSTX(&Addressing::ZeroPageY, memory_map);
+                self.op_stx(&Addressing::ZeroPageY, memory_map);
                 self.program_counter += 2;
             },
             0x8E =>//STX(Absolute):Xからメモリにストア(3バイト/4サイクル)
             {
-                self.opSTX(&Addressing::Absolute, memory_map);
+                self.op_stx(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             },
             0x8C =>//STY(Absolute):Yからメモリにストア(3バイト/4サイクル)
             {
-                self.op_STY(&Addressing::Absolute, memory_map);
+                self.op_sty(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             },
             0x84 =>//STY(Zeropage):Yからメモリにストア(2バイト/3サイクル)
             {
-                self.op_STY(&Addressing::ZeroPage, memory_map);
+                self.op_sty(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0x94 =>//STY(ZeropageX):Yからメモリにストア(2バイト/4サイクル)
             {
-                self.op_STY(&Addressing::ZeroPageX, memory_map);
+                self.op_sty(&Addressing::ZeroPageX, memory_map);
                 self.program_counter += 2;
             },
             0x87 =>//SAX ※拡張命令
             {
-                self.op_SAX(&Addressing::ZeroPage, memory_map);
+                self.op_sax(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0x97 =>//SAX ※拡張命令
             {
-                self.op_SAX(&Addressing::ZeroPageY, memory_map);
+                self.op_sax(&Addressing::ZeroPageY, memory_map);
                 self.program_counter += 2;
             },
             0x8F =>//SAX ※拡張命令
             {
-                self.op_SAX(&Addressing::Absolute, memory_map);
+                self.op_sax(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             },
             0x83 =>//SAX ※拡張命令
             {
-                self.op_SAX(&Addressing::IndirectX, memory_map);
+                self.op_sax(&Addressing::IndirectX, memory_map);
                 self.program_counter += 2;
             },
             0x9A =>
@@ -934,302 +939,302 @@ impl Cpu{
             },
             0xC0 =>
             {
-                self.op_CPY(&Addressing::Immediate, memory_map);
+                self.op_cpy(&Addressing::Immediate, memory_map);
                 self.program_counter += 2;
             },
             0xC4 =>
             {
-                self.op_CPY(&Addressing::ZeroPage, memory_map);
+                self.op_cpy(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0xCC =>
             {
-                self.op_CPY(&Addressing::Absolute, memory_map);
+                self.op_cpy(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             },
             0xE0 =>
             {
-                self.op_CPX(&Addressing::Immediate, memory_map);
+                self.op_cpx(&Addressing::Immediate, memory_map);
                 self.program_counter += 2;
             },
             0xE4 =>
             {
-                self.op_CPX(&Addressing::ZeroPage, memory_map);
+                self.op_cpx(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0xEC =>
             {
-                self.op_CPX(&Addressing::Absolute, memory_map);
+                self.op_cpx(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             },
             0xC5 =>
             {
-                self.op_CMP(&Addressing::ZeroPage, memory_map);
+                self.op_cmp(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0xD5 =>
             {
-                self.op_CMP(&Addressing::ZeroPageX, memory_map);
+                self.op_cmp(&Addressing::ZeroPageX, memory_map);
                 self.program_counter += 2;
             },
             0xC9 =>
             {
-                self.op_CMP(&Addressing::Immediate, memory_map);
+                self.op_cmp(&Addressing::Immediate, memory_map);
                 self.program_counter += 2;
             },
             0xCD =>
             {
-                self.op_CMP(&Addressing::Absolute, memory_map);
+                self.op_cmp(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             },
             0xDD =>
             {
-                self.op_CMP(&Addressing::AbsoluteX, memory_map);
+                self.op_cmp(&Addressing::AbsoluteX, memory_map);
                 self.program_counter += 3;
             },
             0xD9 =>
             {
-                self.op_CMP(&Addressing::AbsoluteY, memory_map);
+                self.op_cmp(&Addressing::AbsoluteY, memory_map);
                 self.program_counter += 3;
             },
             0xC1 =>
             {
-                self.op_CMP(&Addressing::IndirectX, memory_map);
+                self.op_cmp(&Addressing::IndirectX, memory_map);
                 self.program_counter += 2;
             },
             0xD1 =>
             {
-                self.op_CMP(&Addressing::Indirect_Y, memory_map);
+                self.op_cmp(&Addressing::Indirect_Y, memory_map);
                 self.program_counter += 2;
             },
             0x2C =>
             {
-                self.opBIT(&Addressing::Absolute, memory_map);
+                self.op_bit(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             },
             0x24 =>
             {
-                self.opBIT(&Addressing::ZeroPage, memory_map);
+                self.op_bit(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0x29 =>
             {
-                self.opAND(&Addressing::Immediate, memory_map);
+                self.op_and(&Addressing::Immediate, memory_map);
                 self.program_counter += 2;
             },
             0x25 =>
             {
-                self.opAND(&Addressing::ZeroPage, memory_map);
+                self.op_and(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0x35 =>
             {
-                self.opAND(&Addressing::ZeroPageX, memory_map);
+                self.op_and(&Addressing::ZeroPageX, memory_map);
                 self.program_counter += 2;
             },
             0x2D =>
             {
-                self.opAND(&Addressing::Absolute, memory_map);
+                self.op_and(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             },
             0x3D =>
             {
-                self.opAND(&Addressing::AbsoluteX, memory_map);
+                self.op_and(&Addressing::AbsoluteX, memory_map);
                 self.program_counter += 3;
             },
             0x39 =>
             {
-                self.opAND(&Addressing::AbsoluteY, memory_map);
+                self.op_and(&Addressing::AbsoluteY, memory_map);
                 self.program_counter += 3;
             },
             0x21 =>
             {
-                self.opAND(&Addressing::IndirectX, memory_map);
+                self.op_and(&Addressing::IndirectX, memory_map);
                 self.program_counter += 2;
             },
             0x31 =>
             {
-                self.opAND(&Addressing::Indirect_Y, memory_map);
+                self.op_and(&Addressing::Indirect_Y, memory_map);
                 self.program_counter += 2;
             },
             0x49 =>
             {
-                self.opEOR(&Addressing::Immediate, memory_map);
+                self.op_eor(&Addressing::Immediate, memory_map);
                 self.program_counter += 2;
             },
             0x45 =>
             {
-                self.opEOR(&Addressing::ZeroPage, memory_map);
+                self.op_eor(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0x55 =>
             {
-                self.opEOR(&Addressing::ZeroPageX, memory_map);
+                self.op_eor(&Addressing::ZeroPageX, memory_map);
                 self.program_counter += 2;
             },
             0x4D =>
             {
-                self.opEOR(&Addressing::Absolute, memory_map);
+                self.op_eor(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             },
             0x5D =>
             {
-                self.opEOR(&Addressing::AbsoluteX, memory_map);
+                self.op_eor(&Addressing::AbsoluteX, memory_map);
                 self.program_counter += 3;
             },
             0x59 =>
             {
-                self.opEOR(&Addressing::AbsoluteY, memory_map);
+                self.op_eor(&Addressing::AbsoluteY, memory_map);
                 self.program_counter += 3;
             },
             0x41 =>
             {
-                self.opEOR(&Addressing::IndirectX, memory_map);
+                self.op_eor(&Addressing::IndirectX, memory_map);
                 self.program_counter += 2;
             },
             0x51 =>
             {
-                self.opEOR(&Addressing::Indirect_Y, memory_map);
+                self.op_eor(&Addressing::Indirect_Y, memory_map);
                 self.program_counter += 2;
             },
             0x09 =>
             {
-                self.opORA(&Addressing::Immediate, memory_map);
+                self.op_ora(&Addressing::Immediate, memory_map);
                 self.program_counter += 2;
             },
             0x05 =>
             {
-                self.opORA(&Addressing::ZeroPage, memory_map);
+                self.op_ora(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0x15 =>
             {
-                self.opORA(&Addressing::ZeroPageX, memory_map);
+                self.op_ora(&Addressing::ZeroPageX, memory_map);
                 self.program_counter += 2;
             },
             0x0D =>
             {
-                self.opORA(&Addressing::Absolute, memory_map);
+                self.op_ora(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             },
             0x1D =>
             {
-                self.opORA(&Addressing::AbsoluteX, memory_map);
+                self.op_ora(&Addressing::AbsoluteX, memory_map);
                 self.program_counter += 3;
             },
             0x19 =>
             {
-                self.opORA(&Addressing::AbsoluteY, memory_map);
+                self.op_ora(&Addressing::AbsoluteY, memory_map);
                 self.program_counter += 3;
             },
             0x01 =>
             {
-                self.opORA(&Addressing::IndirectX, memory_map);
+                self.op_ora(&Addressing::IndirectX, memory_map);
                 self.program_counter += 2;
             },
             0x11 =>
             {
-                self.opORA(&Addressing::Indirect_Y, memory_map);
+                self.op_ora(&Addressing::Indirect_Y, memory_map);
                 self.program_counter += 2;
             },
             0x69 =>
             {
-                self.opADC(&Addressing::Immediate, memory_map);
+                self.op_adc(&Addressing::Immediate, memory_map);
                 self.program_counter += 2;
             },
             0x61 =>
             {
-                self.opADC(&Addressing::IndirectX, memory_map);
+                self.op_adc(&Addressing::IndirectX, memory_map);
                 self.program_counter += 2;
             },
             0x71 =>
             {
-                self.opADC(&Addressing::Indirect_Y, memory_map);
+                self.op_adc(&Addressing::Indirect_Y, memory_map);
                 self.program_counter += 2;
             },
             0x65 =>
             {
-                self.opADC(&Addressing::ZeroPage, memory_map);
+                self.op_adc(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0x75 =>
             {
-                self.opADC(&Addressing::ZeroPageX, memory_map);
+                self.op_adc(&Addressing::ZeroPageX, memory_map);
                 self.program_counter += 2;
             },
             0x6D =>
             {
-                self.opADC(&Addressing::Absolute, memory_map);
+                self.op_adc(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             },
             0x7D =>
             {
-                self.opADC(&Addressing::AbsoluteX, memory_map);
+                self.op_adc(&Addressing::AbsoluteX, memory_map);
                 self.program_counter += 3;
             },
             0x79 =>
             {
-                self.opADC(&Addressing::AbsoluteY, memory_map);
+                self.op_adc(&Addressing::AbsoluteY, memory_map);
                 self.program_counter += 3;
             },
             0xE9 =>
             {
-                self.opSBC(&Addressing::Immediate, memory_map);
+                self.op_sbc(&Addressing::Immediate, memory_map);
                 self.program_counter += 2;
             },
             0xE5 =>
             {
-                self.opSBC(&Addressing::ZeroPage, memory_map);
+                self.op_sbc(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0xF5 =>
             {
-                self.opSBC(&Addressing::ZeroPageX, memory_map);
+                self.op_sbc(&Addressing::ZeroPageX, memory_map);
                 self.program_counter += 2;
             },
             0xED =>
             {
-                self.opSBC(&Addressing::Absolute, memory_map);
+                self.op_sbc(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             },
             0xFD =>
             {
-                self.opSBC(&Addressing::AbsoluteX, memory_map);
+                self.op_sbc(&Addressing::AbsoluteX, memory_map);
                 self.program_counter += 3;
             },
             0xF9 =>
             {
-                self.opSBC(&Addressing::AbsoluteY, memory_map);
+                self.op_sbc(&Addressing::AbsoluteY, memory_map);
                 self.program_counter += 3;
             },
             0xE1 =>
             {
-                self.opSBC(&Addressing::IndirectX, memory_map);
+                self.op_sbc(&Addressing::IndirectX, memory_map);
                 self.program_counter += 2;
             },
             0xF1 =>
             {
-                self.opSBC(&Addressing::Indirect_Y, memory_map);
+                self.op_sbc(&Addressing::Indirect_Y, memory_map);
                 self.program_counter += 2;
             },
             0x06 =>
             {
-                self.opASL_with_addressing(&Addressing::ZeroPage, memory_map);
+                self.op_asl_with_addressing(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0x16 =>
             {
-                self.opASL_with_addressing(&Addressing::ZeroPageX, memory_map);
+                self.op_asl_with_addressing(&Addressing::ZeroPageX, memory_map);
                 self.program_counter += 2;
             },
             0x0E =>
             {
-                self.opASL_with_addressing(&Addressing::Absolute, memory_map);
+                self.op_asl_with_addressing(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             },
             0x1E =>
             {
-                self.opASL_with_addressing(&Addressing::AbsoluteX, memory_map);
+                self.op_asl_with_addressing(&Addressing::AbsoluteX, memory_map);
                 self.program_counter += 3;
             },
             0x0A =>
@@ -1244,22 +1249,22 @@ impl Cpu{
             },
             0x46 =>
             {
-                self.opLSR_with_addressing(&Addressing::ZeroPage, memory_map);
+                self.op_lsr_with_addressing(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0x56 =>
             {
-                self.opLSR_with_addressing(&Addressing::ZeroPageX, memory_map);
+                self.op_lsr_with_addressing(&Addressing::ZeroPageX, memory_map);
                 self.program_counter += 2;
             },
             0x4E =>
             {
-                self.opLSR_with_addressing(&Addressing::Absolute, memory_map);
+                self.op_lsr_with_addressing(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             },
             0x5E =>
             {
-                self.opLSR_with_addressing(&Addressing::AbsoluteX, memory_map);
+                self.op_lsr_with_addressing(&Addressing::AbsoluteX, memory_map);
                 self.program_counter += 3;
             },
             0x6A =>
@@ -1269,22 +1274,22 @@ impl Cpu{
             },
             0x66 =>
             {
-                self.opROR_with_addressing(&Addressing::ZeroPage, memory_map);
+                self.op_ror_with_addressing(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0x76 =>
             {
-                self.opROR_with_addressing(&Addressing::ZeroPageX, memory_map);
+                self.op_ror_with_addressing(&Addressing::ZeroPageX, memory_map);
                 self.program_counter += 2;
             },
             0x6E =>
             {
-                self.opROR_with_addressing(&Addressing::Absolute, memory_map);
+                self.op_ror_with_addressing(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             },
             0x7E =>
             {
-                self.opROR_with_addressing(&Addressing::AbsoluteX, memory_map);
+                self.op_ror_with_addressing(&Addressing::AbsoluteX, memory_map);
                 self.program_counter += 3;
             },
             0x2A =>
@@ -1294,22 +1299,22 @@ impl Cpu{
             },
             0x26 =>
             {
-                self.opROL_with_addressing(&Addressing::ZeroPage, memory_map);
+                self.op_rol_with_addressing(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0x36 =>
             {
-                self.opROL_with_addressing(&Addressing::ZeroPageX, memory_map);
+                self.op_rol_with_addressing(&Addressing::ZeroPageX, memory_map);
                 self.program_counter += 2;
             },
             0x2E =>
             {
-                self.opROL_with_addressing(&Addressing::Absolute, memory_map);
+                self.op_rol_with_addressing(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             },
             0x3E =>
             {
-                self.opROL_with_addressing(&Addressing::AbsoluteX, memory_map);
+                self.op_rol_with_addressing(&Addressing::AbsoluteX, memory_map);
                 self.program_counter += 3;
             },
             0xE8 =>
@@ -1319,57 +1324,57 @@ impl Cpu{
             },
             0xC8 =>
             {
-                self.opINY();
+                self.op_iny();
                 self.program_counter += 1;
             },
             0xE6 => // (2バイト/5サイクル)
             {
-                self.opINC(&Addressing::ZeroPage, memory_map);
+                self.op_inc(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0xF6 => // (2バイト/6サイクル)
             {
-                self.opINC(&Addressing::ZeroPageX, memory_map);
+                self.op_inc(&Addressing::ZeroPageX, memory_map);
                 self.program_counter += 2;
             },
             0xEE => // (3バイト/6サイクル)
             {
-                self.opINC(&Addressing::Absolute, memory_map);
+                self.op_inc(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             },
             0xFE => // (3バイト/7サイクル)
             {
-                self.opINC(&Addressing::AbsoluteX, memory_map);
+                self.op_inc(&Addressing::AbsoluteX, memory_map);
                 self.program_counter += 3;
             },
             0xCA =>
             {
-                self.opDEX();
+                self.op_dex();
                 self.program_counter += 1;
             },
             0x88 =>
             {
-                self.opDEY();
+                self.op_dey();
                 self.program_counter += 1;
             },
             0xC6 =>
             {
-                self.opDEC(&Addressing::ZeroPage, memory_map);
+                self.op_dec(&Addressing::ZeroPage, memory_map);
                 self.program_counter += 2;
             },
             0xD6 =>
             {
-                self.opDEC(&Addressing::ZeroPageX, memory_map);
+                self.op_dec(&Addressing::ZeroPageX, memory_map);
                 self.program_counter += 2;
             },
             0xCE =>
             {
-                self.opDEC(&Addressing::Absolute, memory_map);
+                self.op_dec(&Addressing::Absolute, memory_map);
                 self.program_counter += 3;
             },
             0xDE =>
             {
-                self.opDEC(&Addressing::AbsoluteX, memory_map);
+                self.op_dec(&Addressing::AbsoluteX, memory_map);
                 self.program_counter += 3;
             },
             0xD0 =>
@@ -1433,7 +1438,7 @@ impl Cpu{
             },
             0x68 =>
             {
-                self.opPLA(memory_map);
+                self.op_pla(memory_map);
                 self.program_counter += 1;
             },
             0x60 =>
@@ -1458,12 +1463,12 @@ impl Cpu{
             },// FIXME: pcインクリメントしないといかん気がする→確認
             0x38 =>
             {
-                self.op_SEC();
+                self.op_sec();
                 self.program_counter += 1;
             },
             0xF8 => // SED ファミコン用6502ではフラグ変更のみ
             {
-                self.op_SED();
+                self.op_sed();
                 self.program_counter += 1;
             },
             0x18 =>
@@ -1483,77 +1488,77 @@ impl Cpu{
             },
             0xEB => // SBC ※拡張命令
             {
-                self.opSBC(&Addressing::Immediate, memory_map);
+                self.op_sbc(&Addressing::Immediate, memory_map);
                 self.program_counter+= 2;
             },
             0xC7 => // DCM(DCP) ※拡張命令
             {
-                self.op_DCM(&Addressing::ZeroPage, memory_map);
+                self.op_dcm(&Addressing::ZeroPage, memory_map);
                 self.program_counter+= 2;
             },
             0xD7 => // DCM(DCP) ※拡張命令
             {
-                self.op_DCM(&Addressing::ZeroPageX, memory_map);
+                self.op_dcm(&Addressing::ZeroPageX, memory_map);
                 self.program_counter+= 2;
             },
             0xCF => // DCM(DCP) ※拡張命令
             {
-                self.op_DCM(&Addressing::Absolute, memory_map);
+                self.op_dcm(&Addressing::Absolute, memory_map);
                 self.program_counter+= 3;
             },
             0xDF => // DCM(DCP) ※拡張命令
             {
-                self.op_DCM(&Addressing::AbsoluteX, memory_map);
+                self.op_dcm(&Addressing::AbsoluteX, memory_map);
                 self.program_counter+= 3;
             },
             0xDB => // DCM(DCP) ※拡張命令
             {
-                self.op_DCM(&Addressing::AbsoluteY, memory_map);
+                self.op_dcm(&Addressing::AbsoluteY, memory_map);
                 self.program_counter+= 3;
             },
             0xC3 => // DCM(DCP) ※拡張命令
             {
-                self.op_DCM(&Addressing::IndirectX, memory_map);
+                self.op_dcm(&Addressing::IndirectX, memory_map);
                 self.program_counter+= 2;
             },
             0xD3 => // DCM(DCP) ※拡張命令
             {
-                self.op_DCM(&Addressing::Indirect_Y, memory_map);
+                self.op_dcm(&Addressing::Indirect_Y, memory_map);
                 self.program_counter+= 2;
             },
             0xE7 => // ISC ※拡張命令
             {
-                self.op_ISC(&Addressing::ZeroPage, memory_map);
+                self.op_isc(&Addressing::ZeroPage, memory_map);
                 self.program_counter+= 2;
             },
             0xF7 => // ISC(ISB) ※拡張命令
             {
-                self.op_ISC(&Addressing::ZeroPageX, memory_map);
+                self.op_isc(&Addressing::ZeroPageX, memory_map);
                 self.program_counter+= 2;
             },
             0xEF => // ISC(ISB) ※拡張命令
             {
-                self.op_ISC(&Addressing::Absolute, memory_map);
+                self.op_isc(&Addressing::Absolute, memory_map);
                 self.program_counter+= 3;
             },
             0xFF => // ISC(ISB) ※拡張命令
             {
-                self.op_ISC(&Addressing::AbsoluteX, memory_map);
+                self.op_isc(&Addressing::AbsoluteX, memory_map);
                 self.program_counter+= 3;
             },
             0xFB => // ISC(ISB) ※拡張命令
             {
-                self.op_ISC(&Addressing::AbsoluteY, memory_map);
+                self.op_isc(&Addressing::AbsoluteY, memory_map);
                 self.program_counter+= 3;
             },
             0xE3 => // ISC(ISB) ※拡張命令
             {
-                self.op_ISC(&Addressing::IndirectX, memory_map);
+                self.op_isc(&Addressing::IndirectX, memory_map);
                 self.program_counter+= 2;
             },
             0xF3 => // ISC(ISB) ※拡張命令
             {
-                self.op_ISC(&Addressing::Indirect_Y, memory_map);
+                self.op_isc(&Addressing::Indirect_Y, memory_map);
                 self.program_counter += 2;
             },
             0xEA =>
