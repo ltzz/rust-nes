@@ -129,7 +129,9 @@ pub fn draw(ctx: &CanvasRenderingContext2d, step: i32) -> Result<(), JsValue> {
                 },
                 AppState::RUN => {
                     (*sys).as_mut().map(|sys|{
-                        sys.execute();
+                        for i in 0..10{ // TODO: タイミング・サイクル数換算は後で実装
+                            sys.execute();
+                        }
                         log(&format!("{:04x} {:02x} {:02x} {:02x} {:02x}", sys.cpu.program_counter, sys.cpu.reg_a, sys.cpu.reg_x, sys.cpu.reg_y, sys.cpu.reg_p));
                     });
                 },
@@ -261,9 +263,7 @@ mod tests {
             if index > 1000 {
                 break;
             }
-            for i in 0..10{ // TODO: タイミング・サイクル数換算は後で実装
-                sys.execute();
-            }
+            sys.execute();
         }
 
         // assert!(larger.can_hold(&smaller));
