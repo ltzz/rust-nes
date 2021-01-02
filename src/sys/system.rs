@@ -14,21 +14,11 @@ impl Nes {
         let cpu = Cpu::new();
         let mut frame_buffer: Vec<u8> = vec!(0; 256*240*4);
 
-        // for y in 0..240 {
-        //     for x in 0..256 {
-        //         if x + y < 128 {
-        //             frame_buffer[(y * 256 + x) * 4 + 0] = 0 as u8;
-        //             frame_buffer[(y * 256 + x) * 4 + 1] = 255 as u8;
-        //             frame_buffer[(y * 256 + x) * 4 + 2] = 0 as u8;
-        //         }
-        //         else {
-        //             frame_buffer[(y * 256 + x) * 4 + 0] = 255 as u8;
-        //             frame_buffer[(y * 256 + x) * 4 + 1] = 255 as u8;
-        //             frame_buffer[(y * 256 + x) * 4 + 2] = 255 as u8;
-        //         }
-        //         frame_buffer[(y * 256 + x) * 4 + 3] = 255 as u8;
-        //     }
-        // }
+        for y in 0..240 {
+            for x in 0..256 {
+                frame_buffer[(y * 256 + x) * 4 + 3] = 255 as u8;
+            }
+        }
 
         Nes{memory_map, cpu, frame_buffer}
     }
@@ -43,6 +33,6 @@ impl Nes {
 
     pub fn execute(&mut self){
         self.cpu.next_cycle(&mut self.memory_map);
-        self.memory_map.ppu.next_cycle(&mut self.frame_buffer);
+        self.memory_map.ppu.next_cycle(&mut self.frame_buffer, &self.memory_map.rom);
     }
 }

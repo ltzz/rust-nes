@@ -4,11 +4,11 @@ use super::{memory_map::MemoryMap};
 
 pub struct Cpu {
     pub program_counter: u32,
-    pub regA: u8,
-    pub regX: u8,
-    pub regY: u8,
-    pub regS: u8,
-    pub regP: u8
+    pub reg_a: u8,
+    pub reg_x: u8,
+    pub reg_y: u8,
+    pub reg_s: u8,
+    pub reg_p: u8
 }
 
 pub enum Addressing {
@@ -31,17 +31,17 @@ impl Cpu{
 
     pub fn new() -> Cpu {
         let program_counter: u32 = 0x0000;
-        let regA: u8 = 0;
-        let regX: u8 = 0;
-        let regY: u8 = 0;
-        let regS: u8 = 0;
-        let regP: u8 = 0;
-        Cpu{program_counter, regA, regX, regY, regS, regP}
+        let reg_a: u8 = 0;
+        let reg_x: u8 = 0;
+        let reg_y: u8 = 0;
+        let reg_s: u8 = 0;
+        let reg_p: u8 = 0;
+        Cpu{program_counter, reg_a, reg_x, reg_y, reg_s, reg_p}
     }
 
     pub fn init(&mut self){
-        self.regP = 0x34;
-        self.regS = 0xFD;
+        self.reg_p = 0x34;
+        self.reg_s = 0xFD;
     }
     
     pub fn next_cycle(&mut self, memory_map: &mut MemoryMap){
@@ -59,7 +59,7 @@ impl Cpu{
         self.setP(value, 7);
     }
     pub fn get_flagN(&self) -> bool{
-        let negative_flag: bool = !((self.regP & 0x80) == 0);
+        let negative_flag: bool = !((self.reg_p & 0x80) == 0);
         return negative_flag;
     }
 
@@ -67,7 +67,7 @@ impl Cpu{
         self.setP(value, 1);
     }
     pub fn get_flagZ(&self) -> bool{
-        let zero_flag: bool = (self.regP & 0x02) != 0;
+        let zero_flag: bool = (self.reg_p & 0x02) != 0;
         return zero_flag;
     }
 
@@ -75,7 +75,7 @@ impl Cpu{
         self.setP(value, 0);
     }
     pub fn get_flagC(&self) -> bool{
-        let carry_flag : bool = !((self.regP & 0x01) == 0);
+        let carry_flag : bool = !((self.reg_p & 0x01) == 0);
         return carry_flag;
     }
 
@@ -83,16 +83,16 @@ impl Cpu{
         self.setP(value, 6);
     }
     pub fn get_flagV(&self) -> bool{
-        let overflow_flag: bool = !((self.regP & 0x40) == 0);
+        let overflow_flag: bool = !((self.reg_p & 0x40) == 0);
         return overflow_flag;
     }
 
     pub fn setP(&mut self, flag: bool, bitpos: u8){
         if flag {
-            self.regP |= 1 << bitpos;
+            self.reg_p |= 1 << bitpos;
         }
         else {
-            self.regP &= !(1 << bitpos); // FIXME: 移植で壊れてないか要確認
+            self.reg_p &= !(1 << bitpos); // FIXME: 移植で壊れてないか要確認
         }
     }
 
@@ -109,26 +109,26 @@ impl Cpu{
             Addressing::ZeroPage =>
                 (self.getIm8(memory_map) & 0xFF) as u32,
             Addressing::ZeroPageX =>
-                (((self.getIm8(memory_map) & 0xFF).wrapping_add(self.regX & 0xFF)) & 0xFF) as u32,
+                (((self.getIm8(memory_map) & 0xFF).wrapping_add(self.reg_x & 0xFF)) & 0xFF) as u32,
             Addressing::ZeroPageY =>
-                (((self.getIm8(memory_map) & 0xFF).wrapping_add(self.regY & 0xFF)) & 0xFF) as u32,
+                (((self.getIm8(memory_map) & 0xFF).wrapping_add(self.reg_y & 0xFF)) & 0xFF) as u32,
             Addressing::Absolute =>
                 self.getIm16(memory_map) as u32,
             Addressing::AbsoluteX =>
-                ((self.getIm16(memory_map) + ((self.regX & 0xFF)) as u16) & 0xFFFF) as u32,
+                ((self.getIm16(memory_map) + ((self.reg_x & 0xFF)) as u16) & 0xFFFF) as u32,
             Addressing::AbsoluteY =>
-                ((self.getIm16(memory_map) + ((self.regY & 0xFF)) as u16) & 0xFFFF) as u32,
+                ((self.getIm16(memory_map) + ((self.reg_y & 0xFF)) as u16) & 0xFFFF) as u32,
             Addressing::Indirect => {
                 let immediate16 = self.getIm16(memory_map);
                 memory_map.get_from_address_in_page(immediate16 as u32) as u32
             },
             Addressing::IndirectX => {
-                let tmp_address = (self.getIm8(memory_map)).wrapping_add(self.regX);
+                let tmp_address = (self.getIm8(memory_map)).wrapping_add(self.reg_x);
                 memory_map.get_from_address16_by_address8(tmp_address) as u32
             },
             Addressing::Indirect_Y =>{
                 let tmp_address = self.getIm8(memory_map) & 0xFF;
-                let mut ret_address = memory_map.get_from_address16_by_address8(tmp_address) + (self.regY & 0xFF) as u16;
+                let mut ret_address = memory_map.get_from_address16_by_address8(tmp_address) + (self.reg_y & 0xFF) as u16;
                 ret_address &= 0xFFFF;
                 ret_address as u32
             },
@@ -179,49 +179,49 @@ impl Cpu{
     }
 
     pub fn op_TXS(&mut self){
-        self.regS = self.regX;
+        self.reg_s = self.reg_x;
     }
     pub fn op_TSX(&mut self){
-        self.eval_NZ(self.regS);
-        self.regX = self.regS;
+        self.eval_NZ(self.reg_s);
+        self.reg_x = self.reg_s;
     }
     pub fn op_TAX(&mut self){
-        self.eval_NZ(self.regA);
-        self.regX = self.regA;
+        self.eval_NZ(self.reg_a);
+        self.reg_x = self.reg_a;
     }
     pub fn op_TXA(&mut self){
-        self.eval_NZ(self.regX);
-        self.regA = self.regX;
+        self.eval_NZ(self.reg_x);
+        self.reg_a = self.reg_x;
     }
     pub fn op_TYA(&mut self){
-        self.eval_NZ(self.regY);
-        self.regA = self.regY;
+        self.eval_NZ(self.reg_y);
+        self.reg_a = self.reg_y;
     }
     pub fn op_TAY(&mut self){
-        self.eval_NZ(self.regA);
-        self.regY = self.regA;
+        self.eval_NZ(self.reg_a);
+        self.reg_y = self.reg_a;
     }
 
     pub fn op_CPX(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
         let value:u8 = self.getOperand(addressing, memory_map);
-        self.setRegAtCompare(self.regX, value);
+        self.setRegAtCompare(self.reg_x, value);
     }
 
     pub fn op_CPY(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
         let value:u8 = self.getOperand(addressing, memory_map);
-        self.setRegAtCompare(self.regY, value);
+        self.setRegAtCompare(self.reg_y, value);
     }
 
     pub fn op_CMP(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
         let value:u8 = self.getOperand(addressing, memory_map);
-        self.setRegAtCompare(self.regA, value);
+        self.setRegAtCompare(self.reg_a, value);
     }
 
     pub fn op_DCM(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
         let value:u8 = self.getOperand(addressing, memory_map);
         let result_value:u8 = value - 1;
         memory_map.set_from_address(self.get_operand_address(addressing, memory_map), result_value);
-        self.setRegAtCompare(self.regA, result_value);
+        self.setRegAtCompare(self.reg_a, result_value);
     }
 
     pub fn op_ISC(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
@@ -267,7 +267,7 @@ impl Cpu{
         else{
             self.set_flagV(false);
         }
-        if (self.regA & value) == 0 { // TODO: ロジック確認してないので要確認
+        if (self.reg_a & value) == 0 { // TODO: ロジック確認してないので要確認
             self.set_flagZ(true);
         }
         else{
@@ -278,33 +278,33 @@ impl Cpu{
 
     pub fn opAND(&mut self, addressing: &Addressing, memory_map: &MemoryMap) {
         let value = self.getOperand(addressing, memory_map);
-        let result_value = self.regA & value;
-        self.regA = result_value;
-        self.eval_NZ(self.regA);
+        let result_value = self.reg_a & value;
+        self.reg_a = result_value;
+        self.eval_NZ(self.reg_a);
     }
 
     pub fn opEOR(&mut self, addressing: &Addressing, memory_map: &MemoryMap) {
         let value = self.getOperand(addressing, memory_map);
-        let result_value = self.regA ^ value;
-        self.regA = result_value;
-        self.eval_NZ(self.regA);
+        let result_value = self.reg_a ^ value;
+        self.reg_a = result_value;
+        self.eval_NZ(self.reg_a);
     }
 
     pub fn opORA(&mut self, addressing: &Addressing, memory_map: &MemoryMap) {
         let value = self.getOperand(addressing, memory_map);
-        let result_value = self.regA | value;
-        self.regA = result_value;
-        self.eval_NZ(self.regA);
+        let result_value = self.reg_a | value;
+        self.reg_a = result_value;
+        self.eval_NZ(self.reg_a);
     }
 
 
     pub fn opADC(&mut self, addressing: &Addressing, memory_map: &MemoryMap) {
         let value = self.getOperand(addressing, memory_map);
-        let carry = self.regP & 0x01;
-        let result_value: u16 = (self.regA & 0xFF) as u16 + (value & 0xFF) as u16 + carry as u16;
-        let regA_old = self.regA;
-        self.regA = (result_value & 0xFF).try_into().unwrap();
-        self.eval_NZ(self.regA);
+        let carry = self.reg_p & 0x01;
+        let result_value: u16 = (self.reg_a & 0xFF) as u16 + (value & 0xFF) as u16 + carry as u16;
+        let regA_old = self.reg_a;
+        self.reg_a = (result_value & 0xFF).try_into().unwrap();
+        self.eval_NZ(self.reg_a);
         if result_value >= 0x100 {
             self.set_flagC(true);
         }
@@ -326,12 +326,12 @@ impl Cpu{
     }
 
     pub fn opSBC_impl(&mut self, value: u8){
-        let carry = self.regP & 0x01;
+        let carry = self.reg_p & 0x01;
         let not_carry: u8 = if carry > 0 {0} else {1};
-        let result_value: i32 = (self.regA & 0xFF) as i32 - value as  i32 - not_carry as i32;
-        let regA_old = self.regA;
-        self.regA = (result_value & 0xFF) as u8;
-        self.eval_NZ(self.regA);
+        let result_value: i32 = (self.reg_a & 0xFF) as i32 - value as  i32 - not_carry as i32;
+        let regA_old = self.reg_a;
+        self.reg_a = (result_value & 0xFF) as u8;
+        self.eval_NZ(self.reg_a);
         if result_value < 0 { // TODO: ロジック確認してないので要確認
             self.set_flagC(false);
         }
@@ -350,7 +350,7 @@ impl Cpu{
     }
 
     pub fn opLSR(&mut self) {
-        self.regA = self.opLSR_impl(self.regA);
+        self.reg_a = self.opLSR_impl(self.reg_a);
     }
 
     pub fn opLSR_with_addressing(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
@@ -374,7 +374,7 @@ impl Cpu{
     }
 
     pub fn opROR(&mut self) {
-        self.regA = self.opROR_impl(self.regA);
+        self.reg_a = self.opROR_impl(self.reg_a);
     }
 
     pub fn opROR_with_addressing(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
@@ -400,7 +400,7 @@ impl Cpu{
     }
 
     pub fn opROL(&mut self) {
-        self.regA = self.opROL_impl(self.regA);
+        self.reg_a = self.opROL_impl(self.reg_a);
     }
     pub fn opROL_with_addressing(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap) {
         let mut data: u8 = self.getOperand(addressing, memory_map);
@@ -424,9 +424,9 @@ impl Cpu{
     }
 
     pub fn opASL(&mut self) {
-        let result_value: u16 = ((self.regA & 0xFF) << 1) as u16;
-        self.regA = (result_value) as u8;
-        self.eval_NZ(self.regA);
+        let result_value: u16 = ((self.reg_a & 0xFF) << 1) as u16;
+        self.reg_a = (result_value) as u8;
+        self.eval_NZ(self.reg_a);
         if result_value >= 0x100 { // TODO: ロジック確認してないので要確認
             self.set_flagC(true);
         }
@@ -451,8 +451,8 @@ impl Cpu{
     }
 
     pub fn opINX(&mut self){
-        self.regX = (self.regX.wrapping_add(1)) as u8;
-        self.eval_NZ(self.regX);
+        self.reg_x = (self.reg_x.wrapping_add(1)) as u8;
+        self.eval_NZ(self.reg_x);
     }
 
     pub fn opINC(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
@@ -472,72 +472,72 @@ impl Cpu{
     }
 
     pub fn opINY(&mut self){
-        self.regY = (self.regY.wrapping_add(1)) as u8;
-        self.eval_NZ(self.regY);
+        self.reg_y = (self.reg_y.wrapping_add(1)) as u8;
+        self.eval_NZ(self.reg_y);
     }
 
     pub fn opDEX(&mut self){
-        self.regX = (self.regX.wrapping_sub(1)) as u8;
-        self.eval_NZ(self.regX);
+        self.reg_x = (self.reg_x.wrapping_sub(1)) as u8;
+        self.eval_NZ(self.reg_x);
     }
 
     pub fn opDEY(&mut self){
-        self.regY = (self.regY.wrapping_sub(1)) as u8;
-        self.eval_NZ(self.regY);
+        self.reg_y = (self.reg_y.wrapping_sub(1)) as u8;
+        self.eval_NZ(self.reg_y);
     }
 
     pub fn op_CLC(&mut self){
-        self.regP = (self.regP & 0xFE) as u8;
+        self.reg_p = (self.reg_p & 0xFE) as u8;
     }
     pub fn op_CLD(&mut self){
-        self.regP = (self.regP & 0xF7) as u8;
+        self.reg_p = (self.reg_p & 0xF7) as u8;
     }
     pub fn op_CLV(&mut self){
-        self.regP = (self.regP & 0xBF) as u8;
+        self.reg_p = (self.reg_p & 0xBF) as u8;
     }
     pub fn op_SEC(&mut self){
-        self.regP = (self.regP | 0x01) as u8;
+        self.reg_p = (self.reg_p | 0x01) as u8;
     }
 
     pub fn op_SED(&mut self){
-        self.regP = (self.regP | 0x08) as u8;
+        self.reg_p = (self.reg_p | 0x08) as u8;
     }
 
     pub fn opSTA(&self, addressing: &Addressing, memory_map: &mut MemoryMap){
-        memory_map.set_from_address(self.get_operand_address(addressing, memory_map), self.regA);
+        memory_map.set_from_address(self.get_operand_address(addressing, memory_map), self.reg_a);
     }
 
     pub fn opSTX(&self, addressing: &Addressing, memory_map: &mut MemoryMap){
-        memory_map.set_from_address(self.get_operand_address(addressing, memory_map), self.regX);
+        memory_map.set_from_address(self.get_operand_address(addressing, memory_map), self.reg_x);
     }
 
     pub fn op_STY(&self, addressing: &Addressing, memory_map: &mut MemoryMap){
-        memory_map.set_from_address(self.get_operand_address(addressing, memory_map), self.regY);
+        memory_map.set_from_address(self.get_operand_address(addressing, memory_map), self.reg_y);
     }
     pub fn op_SAX(&self, addressing: &Addressing, memory_map: &mut MemoryMap){
-        memory_map.set_from_address(self.get_operand_address(addressing, memory_map), (self.regA & self.regX) as u8);
+        memory_map.set_from_address(self.get_operand_address(addressing, memory_map), (self.reg_a & self.reg_x) as u8);
     }
 
     pub fn opLDA(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
         let operand: u8 = self.getOperand(addressing, memory_map);
         self.eval_NZ(operand);
-        self.regA = operand;
+        self.reg_a = operand;
     }
     pub fn op_LDX(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
         let operand: u8 = self.getOperand(addressing, memory_map);
         self.eval_NZ(operand);
-        self.regX = operand;
+        self.reg_x = operand;
     }
     pub fn opLDY(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
         let operand: u8 = self.getOperand(addressing, memory_map);
         self.eval_NZ(operand);
-        self.regY = operand;
+        self.reg_y = operand;
     }
     pub fn opLAX(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
         let operand: u8 = self.getOperand(addressing, memory_map);
         self.eval_NZ(operand);
-        self.regA = operand;
-        self.regX = operand;
+        self.reg_a = operand;
+        self.reg_x = operand;
     }
 
     pub fn opBNE(&mut self, memory_map: &MemoryMap){
@@ -610,67 +610,67 @@ impl Cpu{
         let return_address = self.program_counter + 2; // この命令の最後のアドレスをpush
         let upper: u8 = ((return_address >> 8) & 0xFF) as u8;
         let lower: u8 = (return_address & 0xFF) as u8;
-        let stack_address: u32 = 0x100 + (self.regS & 0xFF) as u32;
+        let stack_address: u32 = 0x100 + (self.reg_s & 0xFF) as u32;
         memory_map.set_from_address(stack_address, upper);
         memory_map.set_from_address(stack_address- 1, lower);
-        self.regS = (self.regS - 2) as u8;
+        self.reg_s = (self.reg_s - 2) as u8;
         self.program_counter = absolute as u32;
     }
 
     pub fn opPHA(&mut self, memory_map: &mut MemoryMap){
-        let stack_address: u32 = (0x100 as u16 + (self.regS & 0xFF) as u16) as u32;
-        memory_map.set_from_address(stack_address, self.regA);
-        self.regS = (self.regS - 1) as u8;
+        let stack_address: u32 = (0x100 as u16 + (self.reg_s & 0xFF) as u16) as u32;
+        memory_map.set_from_address(stack_address, self.reg_a);
+        self.reg_s = (self.reg_s - 1) as u8;
     }
 
     pub fn opPHP(&mut self, memory_map: &mut MemoryMap){
-        let stack_address: u32 = (0x100 as u16 + (self.regS & 0xFF) as u16) as u32;
-        let value = self.regP | 0x10; // ファミコンの仕様 PHPによってスタックに格納する状態フラグでは、ブレイクフラグをセット
+        let stack_address: u32 = (0x100 as u16 + (self.reg_s & 0xFF) as u16) as u32;
+        let value = self.reg_p | 0x10; // ファミコンの仕様 PHPによってスタックに格納する状態フラグでは、ブレイクフラグをセット
         memory_map.set_from_address(stack_address, value);
-        self.regS = (self.regS - 1) as u8;
+        self.reg_s = (self.reg_s - 1) as u8;
     }
     pub fn opPLP(&mut self, memory_map: &MemoryMap){
-        let stack_address: u32 = (0x100 as u16 + (self.regS & 0xFF) as u16 + 1) as u32;
+        let stack_address: u32 = (0x100 as u16 + (self.reg_s & 0xFF) as u16 + 1) as u32;
         let mut value = memory_map.get_from_address(stack_address);
         value = value & 0xEF | 0x20;
         // bit4: ブレイクフラグは実際には存在しないためPへのセット時クリア
         // bit5: Rフラグはは常にセット
-        self.regP = value;
-        self.regS = (self.regS + 1) as u8;
+        self.reg_p = value;
+        self.reg_s = (self.reg_s + 1) as u8;
     }
 
     pub fn opRTS(&mut self, memory_map: &MemoryMap){
-        let stack_address: u32 = (0x100 as u16 + (self.regS & 0xFF) as u16 + 1) as u32;
+        let stack_address: u32 = (0x100 as u16 + (self.reg_s & 0xFF) as u16 + 1) as u32;
         let lower: u8 = memory_map.get_from_address(stack_address);
         let upper: u8 = memory_map.get_from_address(stack_address + 1);
         self.program_counter = ((((upper & 0xFF) as u16) << 8) | (lower & 0xFF) as u16) as u32;
         //programCounter = (upper << 8) | lower;
-        self.regS = (self.regS + 2) as u8;
+        self.reg_s = (self.reg_s + 2) as u8;
     }
 
     pub fn opRTI(&mut self, memory_map: &MemoryMap) {
 
         // Pをpull
-        let stack_addressP: u32 = (0x100 as u16 + (self.regS & 0xFF) as u16 + 1) as u32;
-        self.regP = memory_map.get_from_address(stack_addressP);
-        self.regS = (self.regS + 1) as u8;;
+        let stack_address_p: u32 = (0x100 as u16 + (self.reg_s & 0xFF) as u16 + 1) as u32;
+        self.reg_p = memory_map.get_from_address(stack_address_p);
+        self.reg_s = (self.reg_s + 1) as u8;
 
         // プログラムカウンタをpull
-        let stack_address: u32 = (0x100 as u16 + (self.regS & 0xFF) as u16 + 1) as u32;
+        let stack_address: u32 = (0x100 as u16 + (self.reg_s & 0xFF) as u16 + 1) as u32;
         let lower: u8 = memory_map.get_from_address(stack_address);
         let upper: u8 = memory_map.get_from_address(stack_address + 1);
         self.program_counter = ((((upper & 0xFF) as u16) << 8) | (lower & 0xFF) as u16) as u32;
         //programCounter = (upper << 8) | lower;
-        self.regS = (self.regS + 2) as u8;
+        self.reg_s = (self.reg_s + 2) as u8;
 
     }
 
     pub fn opPLA(&mut self, memory_map: &MemoryMap){
-        let address: u32 = (0x100 as u16 + (self.regS & 0xFF) as u16 + 1) as u32;
+        let address: u32 = (0x100 as u16 + (self.reg_s & 0xFF) as u16 + 1) as u32;
         let value: u8 = memory_map.get_from_address(address);
-        self.regA = value;
-        self.eval_NZ(self.regA);
-        self.regS = (self.regS + 1) as u8;
+        self.reg_a = value;
+        self.eval_NZ(self.reg_a);
+        self.reg_s = (self.reg_s + 1) as u8;
     }
 
     pub fn opBRK(&mut self){
@@ -689,8 +689,8 @@ impl Cpu{
 
     pub fn interpret(&mut self, opcode: u8, memory_map: &mut MemoryMap){
 
-        let opcodeInt: u8 = opcode & 0xFF;
-        match(opcodeInt){
+        let opcode: u8 = opcode & 0xFF;
+        match(opcode){
             0xA2 =>//LDX(Immediate):メモリからXにロード(2バイト/2サイクル)
             {
                 self.op_LDX(&Addressing::Immediate, memory_map);

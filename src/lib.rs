@@ -130,7 +130,7 @@ pub fn draw(ctx: &CanvasRenderingContext2d, step: i32) -> Result<(), JsValue> {
                 AppState::RUN => {
                     (*sys).as_mut().map(|sys|{
                         sys.execute();
-                        log(&format!("{:04x} {:02x} {:02x} {:02x} {:02x}", sys.cpu.program_counter, sys.cpu.regA, sys.cpu.regX, sys.cpu.regY, sys.cpu.regP));
+                        log(&format!("{:04x} {:02x} {:02x} {:02x} {:02x}", sys.cpu.program_counter, sys.cpu.reg_a, sys.cpu.reg_x, sys.cpu.reg_y, sys.cpu.reg_p));
                     });
                 },
                 _ => {}
@@ -241,7 +241,7 @@ mod tests {
         let mut sys = Nes::new(rom);
         sys.reset();
         sys.cpu.program_counter = 0xC000;
-        sys.cpu.regP = 0x24;
+        sys.cpu.reg_p = 0x24;
 
         for (index, line) in log_line.enumerate() {
             let line_split1: Vec<&str> = line.split_whitespace().collect();
@@ -256,12 +256,14 @@ mod tests {
             let regP_expect = caps.get(0).unwrap().as_str().to_string();
 
             let expect = format!("{} {} {}", pc_expect, regA_expect, regP_expect);
-            let actual = format!("{:04X} A:{:02X} P:{:02X}", sys.cpu.program_counter, sys.cpu.regA, sys.cpu.regP);
+            let actual = format!("{:04X} A:{:02X} P:{:02X}", sys.cpu.program_counter, sys.cpu.reg_a, sys.cpu.reg_p);
             assert_eq!(expect, actual);
             if index > 1000 {
                 break;
             }
-            sys.execute();
+            for i in 0..10{ // TODO: タイミング・サイクル数換算は後で実装
+                sys.execute();
+            }
         }
 
         // assert!(larger.can_hold(&smaller));
