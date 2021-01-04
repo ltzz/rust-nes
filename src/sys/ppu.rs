@@ -1,13 +1,11 @@
-use super::{memory_map::{self, MemoryMap}, rom::Rom, system::Nes};
+use super::{rom::Rom};
 
 pub struct Ppu {
     pub ppu_ram: [u8; 0x4000], // TODO: 今は容量適当
     pub ppu_oam: [u8; 0x100],
     pub ppu_reg: [u8; 8],
-    // pub ppu_chr_rom: [u8],
     pub ppu_addr_count: u8, //TODO: 直せたら直す
     pub ppu_addr: u16,
-    // pub frame_buffer: [i32],
     pub bg_color_tables: Vec<Vec<u8>>,// [[u8; 64]; 4096],
     pub sp_color_tables: Vec<Vec<u8>>,// [[u8; 64]; 4096],
     pub attribute_table_cache: [u8; 16*16] // 各16x16pixelの画面領域で使うパレット
@@ -25,10 +23,10 @@ const fn convert_to_rgb24(octal: u32) -> u32{
     return rgb;
 }
 const COLOR_PALETTE_OCTAL: [u32; 64] = [
-    0333,0014,0006,0326,0403,0503,0510,0420,0320,0120,0031,0040,0022,0000,0000,0000,
-    0555,0036,0027,0407,0507,0704,0700,0630,0430,0140,0040,0053,0044,0000,0000,0000,
-    0777,0357,0447,0637,0707,0737,0740,0750,0660,0360,0070,0276,0077,0000,0000,0000,
-    0777,0567,0657,0757,0747,0755,0764,0772,0773,0572,0473,0276,0467,0000,0000,0000
+    0o333,0o014,0o006,0o326,0o403,0o503,0o510,0o420,0o320,0o120,0o031,0o040,0o022,0o000,0o000,0o000,
+    0o555,0o036,0o027,0o407,0o507,0o704,0o700,0o630,0o430,0o140,0o040,0o053,0o044,0o000,0o000,0o000,
+    0o777,0o357,0o447,0o637,0o707,0o737,0o740,0o750,0o660,0o360,0o070,0o276,0o077,0o000,0o000,0o000,
+    0o777,0o567,0o657,0o757,0o747,0o755,0o764,0o772,0o773,0o572,0o473,0o276,0o467,0o000,0o000,0o000
 ];
 
 const COLOR_PALETTE: [u8; 64 * 3] = generate_color_palette();
@@ -66,12 +64,15 @@ impl Ppu {
 
     pub fn write_ppu_addr(&mut self){
         if self.ppu_addr_count == 0 {
-            self.ppu_addr &= 0xFF;
-            self.ppu_addr |= ((self.ppu_reg[6] & 0xFF) as u16) << 8;
+            self.ppu_addr = ((self.ppu_reg[6] & 0xFF) as u16) << 8;
         } else if self.ppu_addr_count == 1 {
-            self.ppu_addr = self.ppu_addr | (self.ppu_reg[6] & 0xFF) as u16;
+            self.ppu_addr = (self.ppu_addr | (self.ppu_reg[6] & 0xFF) as u16) as u16
         }
         self.ppu_addr_count = (self.ppu_addr_count + 1) % 2;
+    }
+
+    pub fn read_ppu_data(&self) -> u8{
+        return self.ppu_ram[self.ppu_addr as usize];
     }
 
     pub fn write_ppu_data(&mut self){
@@ -101,6 +102,11 @@ impl Ppu {
         self.ppu_addr += address_inc;
     }
 
+    pub fn sprite_dma(&mut self, address_upper: u8, cpu_ram: &[u8]){
+        let start = (((address_upper & 0xFF) as u16) << 8) as usize;
+        self.ppu_oam[0..0x100].clone_from_slice(&cpu_ram[start..]);
+    }
+
     pub fn refresh_attribute_table(&mut self){
         let main_screen = self.ppu_reg[0] & 0x03;
         let start_addr = 0x2000 + (main_screen as u16 * 0x400);
@@ -112,10 +118,10 @@ impl Ppu {
             let top_right = (value & 0x0C) >> 2;
             let bottom_left = (value & 0x30) >> 4;
             let bottom_right = (value & 0xC0) >> 6;
-            let attributeTableY = attribute_table_addr / 8;
-            let area_y = 2 * attributeTableY;
-            let attributeTableX = attribute_table_addr % 8;
-            let area_x = 2 * attributeTableX;
+            let attribute_table_y = attribute_table_addr / 8;
+            let area_y = 2 * attribute_table_y;
+            let attribute_table_x = attribute_table_addr % 8;
+            let area_x = 2 * attribute_table_x;
             self.attribute_table_cache[(area_y * 8 + area_x) as usize] = top_left;
             self.attribute_table_cache[(area_y * 8 + area_x + 1) as usize] = top_right;
             self.attribute_table_cache[((area_y + 1) * 8 + area_x) as usize] = bottom_left;
@@ -127,10 +133,10 @@ impl Ppu {
         let bg_offset_addr: u32 = if (self.ppu_reg[0] & 0x10) > 0 {0x1000} else {0};
         let sp_offset_addr: u32 = if (self.ppu_reg[0] & 0x08) > 0 {0x1000} else {0};
         for tile_id in 0..0x100{
-            let tileIdOffsetAddress = tile_id * 16;
+            let tile_id_offset_address = tile_id * 16;
 
             for chr_index in 0..8{ // 前半
-                let chr_value = rom.chr_rom[(bg_offset_addr + tileIdOffsetAddress + chr_index)as usize];
+                let chr_value = rom.chr_rom[(bg_offset_addr + tile_id_offset_address + chr_index)as usize];
                 let y_cache_index = chr_index * 8;
                 for xIndex in 0..8{
                     let shift = 7 - xIndex;
@@ -138,7 +144,7 @@ impl Ppu {
                 }
             }
             for chr_index in 0..8{ // 後半
-                let chr_value = rom.chr_rom[(bg_offset_addr + tileIdOffsetAddress + 8 + chr_index)as usize];
+                let chr_value = rom.chr_rom[(bg_offset_addr + tile_id_offset_address + 8 + chr_index)as usize];
                 let y_cache_index = chr_index * 8;
                 for xIndex in 0..8{
                     let shift = 7 - xIndex;
@@ -147,10 +153,10 @@ impl Ppu {
             }
         }
         for tile_id in 0..0x100{
-            let tileIdOffsetAddress = tile_id * 16;
+            let tile_id_offset_address = tile_id * 16;
 
             for chr_index in 0..8{ // 前半
-                let chr_value = rom.chr_rom[(sp_offset_addr + tileIdOffsetAddress + chr_index)as usize];
+                let chr_value = rom.chr_rom[(sp_offset_addr + tile_id_offset_address + chr_index)as usize];
                 let y_cache_index = chr_index * 8;
                 for xIndex in 0..8{
                     let shift = 7 - xIndex;
@@ -158,7 +164,7 @@ impl Ppu {
                 }
             }
             for chr_index in 0..8{ // 後半
-                let chr_value = rom.chr_rom[(sp_offset_addr + tileIdOffsetAddress + 8 + chr_index)as usize];
+                let chr_value = rom.chr_rom[(sp_offset_addr + tile_id_offset_address + 8 + chr_index)as usize];
                 let y_cache_index = chr_index * 8;
                 for xIndex in 0..8{
                     let shift = 7 - xIndex;
@@ -175,13 +181,13 @@ impl Ppu {
     }
     
     fn get_bg_color_id(&self, palette: i32, num: i32) -> u8{
-        let palette_table_bg_addr = 0x3F00;
-        return self.ppu_ram[(palette_table_bg_addr + 4 * palette + num) as usize];
+        const PALETTE_TABLE_BG_ADDR: i32 = 0x3F00;
+        return self.ppu_ram[(PALETTE_TABLE_BG_ADDR + 4 * palette + num) as usize];
     }
 
     fn get_sp_color_id(&self, palette: i32, num: i32) -> u8{
-        let palette_table_sp_addr = 0x3F10;
-        return self.ppu_ram[(palette_table_sp_addr + 4 * palette + num) as usize];
+        const PALETTE_TABLE_SP_ADDR: i32 = 0x3F10;
+        return self.ppu_ram[(PALETTE_TABLE_SP_ADDR + 4 * palette + num) as usize];
     }
 
     pub fn draw(&self, frame_buffer: &mut [u8]){
@@ -211,7 +217,6 @@ impl Ppu {
                     let r = COLOR_PALETTE[(color_id * 3 + 0) as usize];
                     let g = COLOR_PALETTE[(color_id * 3 + 1) as usize];
                     let b = COLOR_PALETTE[(color_id * 3 + 2) as usize];
-                    //sys.frame_buffer[frame_buffer_index as usize] = getColor(getBGColorId(palette, tmp));
                     frame_buffer[(frame_buffer_index * 4 + 0) as usize] = r;
                     frame_buffer[(frame_buffer_index * 4 + 1) as usize] = g;
                     frame_buffer[(frame_buffer_index * 4 + 2) as usize] = b;
@@ -222,9 +227,9 @@ impl Ppu {
 
         // Sprite描画
         for sprite_addr in (0..0x100).step_by(4) {
-            let tileY       = self.ppu_oam[sprite_addr + 0] & 0xFF;
-            let tileX       = self.ppu_oam[sprite_addr + 3] & 0xFF;
-            if tileY >= 240 {
+            let tile_y       = self.ppu_oam[sprite_addr + 0] & 0xFF;
+            let tile_x       = self.ppu_oam[sprite_addr + 3] & 0xFF;
+            if tile_y >= 240 {
                 break;
             }
 
@@ -242,8 +247,8 @@ impl Ppu {
                 let palette = attr & 0x03;
 
                 for color_table_index in 0..64 {
-                    let x = tileX + (color_table_index % 8);
-                    let y = tileY + (color_table_index / 8);
+                    let x = tile_x + (color_table_index % 8);
+                    let y = tile_y + (color_table_index / 8);
                     let tmp = self.sp_color_tables[tile_id as usize][color_table_index as usize] & 0xFF;
                     
                     let color_id = self.get_sp_color_id(palette.into(), tmp.into());

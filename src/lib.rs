@@ -67,7 +67,7 @@ pub fn run() -> Result<(), JsValue>  {
 
     let mut i = 0;
     *g.borrow_mut() = Some(Closure::wrap(Box::new(move || {
-        if i > 5000 {
+        if i > 15000 {
 
             // Drop our handle to this closure so that it will get cleaned
             // up once we return.
@@ -252,15 +252,19 @@ mod tests {
             let regex_a = Regex::new(r"(A:..)").unwrap();
             let caps = regex_a.captures(line).unwrap();
             let reg_a_expect = caps.get(0).unwrap().as_str().to_string();
+            
+            let regex_x = Regex::new(r"(X:..)").unwrap();
+            let caps = regex_x.captures(line).unwrap();
+            let reg_x_expect = caps.get(0).unwrap().as_str().to_string();
 
             let regex_p = Regex::new(r"(P:..)").unwrap();
             let caps = regex_p.captures(line).unwrap();
             let reg_p_expect = caps.get(0).unwrap().as_str().to_string();
 
-            let expect = format!("{} {} {}", pc_expect, reg_a_expect, reg_p_expect);
-            let actual = format!("{:04X} A:{:02X} P:{:02X}", sys.cpu.program_counter, sys.cpu.reg_a, sys.cpu.reg_p);
+            let expect = format!("{} {} {} {}", pc_expect, reg_a_expect, reg_x_expect, reg_p_expect);
+            let actual = format!("{:04X} A:{:02X} X:{:02X} P:{:02X}", sys.cpu.program_counter, sys.cpu.reg_a, sys.cpu.reg_x, sys.cpu.reg_p);
             assert_eq!(expect, actual);
-            if index > 3350{
+            if index > 8991{
                 break;
             }
             sys.execute();

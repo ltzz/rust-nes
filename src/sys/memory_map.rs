@@ -20,12 +20,12 @@ impl MemoryMap {
         else if address < 0x2008 {
             // ppu i/o
             if address == 0x2002 {
-                // return ppu.ppuReg[2];
+                return self.ppu.ppu_reg[2];
             }
             else if address == 0x2006 {
             }
             else if address == 0x2007 {
-                // ppu.readPPUData();
+                return self.ppu.read_ppu_data();
             }
         }
         else if address < 0x4000 {
@@ -82,7 +82,7 @@ impl MemoryMap {
             //     final int a = 1;
             // }
         } else if address == 0x4014 {
-            // ppu.spriteDMA(value, wram);
+            self.ppu.sprite_dma(value, &self.wram);
         } else if address == 0x4016 {
             // joyPad.buttonResetFromIO();
         }

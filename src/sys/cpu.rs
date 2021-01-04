@@ -115,9 +115,9 @@ impl Cpu{
             Addressing::Absolute =>
                 self.getIm16(memory_map) as u32,
             Addressing::AbsoluteX =>
-                ((self.getIm16(memory_map) + ((self.reg_x & 0xFF)) as u16) & 0xFFFF) as u32,
+                ((self.getIm16(memory_map).wrapping_add((self.reg_x & 0xFF) as u16)) & 0xFFFF) as u32,
             Addressing::AbsoluteY =>
-                ((self.getIm16(memory_map) + ((self.reg_y & 0xFF)) as u16) & 0xFFFF) as u32,
+                ((self.getIm16(memory_map).wrapping_add((self.reg_y & 0xFF) as u16)) & 0xFFFF) as u32,
             Addressing::Indirect => {
                 let immediate16 = self.getIm16(memory_map);
                 memory_map.get_from_address_in_page(immediate16 as u32) as u32
@@ -185,11 +185,11 @@ impl Cpu{
         self.eval_NZ(self.reg_s);
         self.reg_x = self.reg_s;
     }
-    pub fn op_TAX(&mut self){
+    pub fn op_tax(&mut self){
         self.eval_NZ(self.reg_a);
         self.reg_x = self.reg_a;
     }
-    pub fn op_TXA(&mut self){
+    pub fn op_txa(&mut self){
         self.eval_NZ(self.reg_x);
         self.reg_a = self.reg_x;
     }
@@ -219,14 +219,14 @@ impl Cpu{
 
     pub fn op_dcm(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
         let value:u8 = self.get_operand(addressing, memory_map);
-        let result_value:u8 = value - 1;
+        let result_value:u8 = value.wrapping_sub(1);
         memory_map.set_from_address(self.get_operand_address(addressing, memory_map), result_value);
         self.set_reg_at_compare(self.reg_a, result_value);
     }
 
     pub fn op_isc(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
         let value: u8 = self.get_operand(addressing, memory_map);
-        let result_value: u8 = value + 1;
+        let result_value: u8 = value.wrapping_add(1);
         memory_map.set_from_address(self.get_operand_address(addressing, memory_map), result_value);
         self.op_sbc_impl(result_value);
     }
@@ -329,7 +329,7 @@ impl Cpu{
         let carry = self.reg_p & 0x01;
         let not_carry: u8 = if carry > 0 {0} else {1};
         let result_value: i32 = (self.reg_a & 0xFF) as i32 - value as  i32 - not_carry as i32;
-        let regA_old = self.reg_a;
+        let reg_a_old = self.reg_a;
         self.reg_a = (result_value & 0xFF) as u8;
         self.eval_NZ(self.reg_a);
         if result_value < 0 { // TODO: ロジック確認してないので要確認
@@ -341,7 +341,7 @@ impl Cpu{
 
         let result_value_u8 = (result_value & 0xFF) as u8;
         let borrowed_value: u8 = (((value ^ 0xFF) as u16 + 0x100 as u16) & 0xFF).try_into().unwrap();
-        if ((result_value_u8 ^ borrowed_value) & (result_value_u8 ^ regA_old) & 0x80) > 0 {
+        if ((result_value_u8 ^ borrowed_value) & (result_value_u8 ^ reg_a_old) & 0x80) > 0 {
             self.set_flag_v(true);
         }
         else {
@@ -450,6 +450,27 @@ impl Cpu{
         }
     }
 
+    
+    pub fn op_aso_with_addressing(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap) {
+        self.op_asl_with_addressing(addressing, memory_map);
+        self.op_ora(addressing, memory_map);
+    }
+
+    pub fn op_rla_with_addressing(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap) {
+        self.op_rol_with_addressing(addressing, memory_map);
+        self.op_and(addressing, memory_map);
+    }
+
+    pub fn op_lse_with_addressing(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap) {
+        self.op_lsr_with_addressing(addressing, memory_map);
+        self.op_eor(addressing, memory_map);
+    }
+
+    pub fn op_rra_with_addressing(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap) {
+        self.op_ror_with_addressing(addressing, memory_map);
+        self.op_adc(addressing, memory_map);
+    }
+
     pub fn op_inx(&mut self){
         self.reg_x = (self.reg_x.wrapping_add(1)) as u8;
         self.eval_NZ(self.reg_x);
@@ -486,13 +507,13 @@ impl Cpu{
         self.eval_NZ(self.reg_y);
     }
 
-    pub fn op_CLC(&mut self){
+    pub fn op_clc(&mut self){
         self.reg_p = (self.reg_p & 0xFE) as u8;
     }
-    pub fn op_CLD(&mut self){
+    pub fn op_cld(&mut self){
         self.reg_p = (self.reg_p & 0xF7) as u8;
     }
-    pub fn op_CLV(&mut self){
+    pub fn op_clv(&mut self){
         self.reg_p = (self.reg_p & 0xBF) as u8;
     }
     pub fn op_sec(&mut self){
@@ -919,12 +940,12 @@ impl Cpu{
             },
             0xAA =>
             {
-                self.op_TAX();
+                self.op_tax();
                 self.program_counter += 1;
             },
             0x8A =>
             {
-                self.op_TXA();
+                self.op_txa();
                 self.program_counter += 1;
             },
             0x98 =>
@@ -1473,17 +1494,17 @@ impl Cpu{
             },
             0x18 =>
             {
-                self.op_CLC();
+                self.op_clc();
                 self.program_counter += 1;
             },
             0xD8 => // CLD ファミコン用6502ではフラグ変更のみ
             {
-                self.op_CLD();
+                self.op_cld();
                 self.program_counter += 1;
             },
             0xB8 =>
             {
-                self.op_CLV();
+                self.op_clv();
                 self.program_counter += 1;
             },
             0xEB => // SBC ※拡張命令
@@ -1565,6 +1586,174 @@ impl Cpu{
             {
                 // NOP
                 self.program_counter += 1;
+            },
+            0x03 => {
+                // ASO/SLO 本来 未定義命令
+                // memory = shift left memory, A = A OR memory
+                self.op_aso_with_addressing(&Addressing::IndirectX, memory_map);
+                self.program_counter += 2;
+            },
+            0x07 => {
+                // ASO/SLO 本来 未定義命令
+                // memory = shift left memory, A = A OR memory
+                self.op_aso_with_addressing(&Addressing::ZeroPage, memory_map);
+                self.program_counter += 2;
+            },
+            0x0F => {
+                // ASO/SLO 本来 未定義命令
+                // memory = shift left memory, A = A OR memory
+                self.op_aso_with_addressing(&Addressing::Absolute, memory_map);
+                self.program_counter += 3;
+            },
+            0x13 => {
+                // ASO/SLO 本来 未定義命令
+                // memory = shift left memory, A = A OR memory
+                self.op_aso_with_addressing(&Addressing::Indirect_Y, memory_map);
+                self.program_counter += 2;
+            },
+            0x17 => {
+                // ASO/SLO 本来 未定義命令
+                // memory = shift left memory, A = A OR memory
+                self.op_aso_with_addressing(&Addressing::ZeroPageX, memory_map);
+                self.program_counter += 2;
+            },
+            0x1B => {
+                // ASO/SLO 本来 未定義命令
+                // memory = shift left memory, A = A OR memory
+                self.op_aso_with_addressing(&Addressing::AbsoluteY, memory_map);
+                self.program_counter += 3;
+            },
+            0x1F => {
+                // ASO/SLO 本来 未定義命令
+                // memory = shift left memory, A = A OR memory
+                self.op_aso_with_addressing(&Addressing::AbsoluteX, memory_map);
+                self.program_counter += 3;
+            },
+            0x23 => {
+                // RLA 本来 未定義命令
+                // memory = rotate left memory, A = A AND memory
+                self.op_rla_with_addressing(&Addressing::IndirectX, memory_map);
+                self.program_counter += 2;
+            },
+            0x27 => {
+                // RLA 本来 未定義命令
+                // memory = rotate left memory, A = A AND memory
+                self.op_rla_with_addressing(&Addressing::ZeroPage, memory_map);
+                self.program_counter += 2;
+            },
+            0x2F => {
+                // RLA 本来 未定義命令
+                // memory = rotate left memory, A = A AND memory
+                self.op_rla_with_addressing(&Addressing::Absolute, memory_map);
+                self.program_counter += 3;
+            },
+            0x33 => {
+                // RLA 本来 未定義命令
+                // memory = rotate left memory, A = A AND memory
+                self.op_rla_with_addressing(&Addressing::Indirect_Y, memory_map);
+                self.program_counter += 2;
+            },
+            0x37 => {
+                // RLA 本来 未定義命令
+                // memory = rotate left memory, A = A AND memory
+                self.op_rla_with_addressing(&Addressing::ZeroPageX, memory_map);
+                self.program_counter += 2;
+            },
+            0x3B => {
+                // RLA 本来 未定義命令
+                // memory = rotate left memory, A = A AND memory
+                self.op_rla_with_addressing(&Addressing::AbsoluteY, memory_map);
+                self.program_counter += 3;
+            },
+            0x3F => {
+                // RLA 本来 未定義命令
+                // memory = rotate left memory, A = A AND memory
+                self.op_rla_with_addressing(&Addressing::AbsoluteX, memory_map);
+                self.program_counter += 3;
+            },
+            0x43 => {
+                // SRE/LSE 本来 未定義命令
+                // memory = shift right memory, A = A EOR memory
+                self.op_lse_with_addressing(&Addressing::IndirectX, memory_map);
+                self.program_counter += 2;
+            },
+            0x47 => {
+                // SRE/LSE 本来 未定義命令
+                // memory = shift right memory, A = A EOR memory
+                self.op_lse_with_addressing(&Addressing::ZeroPage, memory_map);
+                self.program_counter += 2;
+            },
+            0x4F => {
+                // SRE/LSE 本来 未定義命令
+                // memory = shift right memory, A = A EOR memory
+                self.op_lse_with_addressing(&Addressing::Absolute, memory_map);
+                self.program_counter += 3;
+            },
+            0x53 => {
+                // SRE/LSE 本来 未定義命令
+                // memory = shift right memory, A = A EOR memory
+                self.op_lse_with_addressing(&Addressing::Indirect_Y, memory_map);
+                self.program_counter += 2;
+            },
+            0x57 => {
+                // SRE/LSE 本来 未定義命令
+                // memory = shift right memory, A = A EOR memory
+                self.op_lse_with_addressing(&Addressing::ZeroPageX, memory_map);
+                self.program_counter += 2;
+            },
+            0x5B => {
+                // SRE/LSE 本来 未定義命令
+                // memory = shift right memory, A = A EOR memory
+                self.op_lse_with_addressing(&Addressing::AbsoluteY, memory_map);
+                self.program_counter += 3;
+            },
+            0x5F => {
+                // SRE/LSE 本来 未定義命令
+                // memory = shift right memory, A = A EOR memory
+                self.op_lse_with_addressing(&Addressing::AbsoluteX, memory_map);
+                self.program_counter += 3;
+            },
+            0x63 => {
+                // RRA 本来 未定義命令
+                // memory = rotate right memory, A = A + C + memory
+                self.op_rra_with_addressing(&Addressing::IndirectX, memory_map);
+                self.program_counter += 2;
+            },
+            0x67 => {
+                // RRA 本来 未定義命令
+                // memory = rotate right memory, A = A + C + memory
+                self.op_rra_with_addressing(&Addressing::ZeroPage, memory_map);
+                self.program_counter += 2;
+            },
+            0x6F => {
+                // RRA 本来 未定義命令
+                // memory = rotate right memory, A = A + C + memory
+                self.op_rra_with_addressing(&Addressing::Absolute, memory_map);
+                self.program_counter += 3;
+            },
+            0x73 => {
+                // RRA 本来 未定義命令
+                // memory = rotate right memory, A = A + C + memory
+                self.op_rra_with_addressing(&Addressing::Indirect_Y, memory_map);
+                self.program_counter += 2;
+            },
+            0x77 => {
+                // RRA 本来 未定義命令
+                // memory = rotate right memory, A = A + C + memory
+                self.op_rra_with_addressing(&Addressing::ZeroPageX, memory_map);
+                self.program_counter += 2;
+            },
+            0x7B => {
+                // RRA 本来 未定義命令
+                // memory = rotate right memory, A = A + C + memory
+                self.op_rra_with_addressing(&Addressing::AbsoluteY, memory_map);
+                self.program_counter += 3;
+            },
+            0x7F => {
+                // RRA 本来 未定義命令
+                // memory = rotate right memory, A = A + C + memory
+                self.op_rra_with_addressing(&Addressing::AbsoluteX, memory_map);
+                self.program_counter += 3;
             },
             0x1A |
             0x3A |
