@@ -96,15 +96,15 @@ impl Cpu{
         }
     }
 
-    pub fn getIm16(&self, memory_map: &MemoryMap) -> u16{
+    pub fn getIm16(&self, memory_map: &mut MemoryMap) -> u16{
         return memory_map.get_from_address16(self.program_counter + 1);
     }
 
-    pub fn getIm8(&self, memory_map: &MemoryMap) -> u8{
+    pub fn getIm8(&self, memory_map: &mut MemoryMap) -> u8{
         return memory_map.get_from_address(self.program_counter + 1);
     }
     
-    pub fn get_operand_address(&self, addressing: &Addressing, memory_map: &MemoryMap) -> u32{
+    pub fn get_operand_address(&self, addressing: &Addressing, memory_map: &mut MemoryMap) -> u32{
         let address = match addressing{
             Addressing::ZeroPage =>
                 (self.getIm8(memory_map) & 0xFF) as u32,
@@ -137,28 +137,46 @@ impl Cpu{
         return address;
     }
 
-    pub fn get_operand(&self, addressing: &Addressing, memory_map: &MemoryMap) -> u8{
+    pub fn get_operand(&self, addressing: &Addressing, memory_map: &mut MemoryMap) -> u8{
         let data: u8 = match addressing{
             Addressing::Immediate =>
                 self.getIm8(memory_map),
-            Addressing::ZeroPage =>
-                memory_map.get_from_address(self.get_operand_address(&Addressing::ZeroPage, memory_map)),
-            Addressing::ZeroPageX =>
-                memory_map.get_from_address(self.get_operand_address(&Addressing::ZeroPageX, memory_map)),
-            Addressing::ZeroPageY =>
-                memory_map.get_from_address(self.get_operand_address(&Addressing::ZeroPageY, memory_map)),
-            Addressing::Absolute =>
-                memory_map.get_from_address(self.get_operand_address(&Addressing::Absolute, memory_map)),
-            Addressing::AbsoluteX =>
-                memory_map.get_from_address(self.get_operand_address(&Addressing::AbsoluteX, memory_map)),
-            Addressing::AbsoluteY =>
-                memory_map.get_from_address(self.get_operand_address(&Addressing::AbsoluteY, memory_map)),
-            Addressing::Indirect =>
-                memory_map.get_from_address(self.get_operand_address(&Addressing::Indirect, memory_map)),
-            Addressing::IndirectX =>
-                memory_map.get_from_address(self.get_operand_address(&Addressing::IndirectX, memory_map)),
-            Addressing::Indirect_Y =>
-                memory_map.get_from_address(self.get_operand_address(&Addressing::Indirect_Y, memory_map)),
+            Addressing::ZeroPage => {
+                let address = self.get_operand_address(&Addressing::ZeroPage, memory_map);
+                memory_map.get_from_address(address)
+            },
+            Addressing::ZeroPageX => {
+                let address = self.get_operand_address(&Addressing::ZeroPageX, memory_map);
+                memory_map.get_from_address(address)
+            },
+            Addressing::ZeroPageY => {
+                let address = self.get_operand_address(&Addressing::ZeroPageY, memory_map);
+                memory_map.get_from_address(address)
+            },
+            Addressing::Absolute => {
+                let address = self.get_operand_address(&Addressing::Absolute, memory_map);
+                memory_map.get_from_address(address)
+            },
+            Addressing::AbsoluteX => {
+                let address = self.get_operand_address(&Addressing::AbsoluteX, memory_map);
+                memory_map.get_from_address(address)
+            },
+            Addressing::AbsoluteY => {
+                let address = self.get_operand_address(&Addressing::AbsoluteY, memory_map);
+                memory_map.get_from_address(address)
+            },
+            Addressing::Indirect => {
+                let address = self.get_operand_address(&Addressing::Indirect, memory_map);
+                memory_map.get_from_address(address)
+            },
+            Addressing::IndirectX => {
+                let address = self.get_operand_address(&Addressing::IndirectX, memory_map);
+                memory_map.get_from_address(address)
+            },
+            Addressing::Indirect_Y => {
+                let address = self.get_operand_address(&Addressing::Indirect_Y, memory_map);
+                memory_map.get_from_address(address)
+            },
             _ => 0x00
         };
         return data;
@@ -202,17 +220,17 @@ impl Cpu{
         self.reg_y = self.reg_a;
     }
 
-    pub fn op_cpx(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
+    pub fn op_cpx(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
         let value:u8 = self.get_operand(addressing, memory_map);
         self.set_reg_at_compare(self.reg_x, value);
     }
 
-    pub fn op_cpy(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
+    pub fn op_cpy(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
         let value:u8 = self.get_operand(addressing, memory_map);
         self.set_reg_at_compare(self.reg_y, value);
     }
 
-    pub fn op_cmp(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
+    pub fn op_cmp(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
         let value:u8 = self.get_operand(addressing, memory_map);
         self.set_reg_at_compare(self.reg_a, value);
     }
@@ -220,14 +238,16 @@ impl Cpu{
     pub fn op_dcm(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
         let value:u8 = self.get_operand(addressing, memory_map);
         let result_value:u8 = value.wrapping_sub(1);
-        memory_map.set_from_address(self.get_operand_address(addressing, memory_map), result_value);
+        let address = self.get_operand_address(addressing, memory_map);
+        memory_map.set_from_address(address, result_value);
         self.set_reg_at_compare(self.reg_a, result_value);
     }
 
     pub fn op_isc(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
         let value: u8 = self.get_operand(addressing, memory_map);
         let result_value: u8 = value.wrapping_add(1);
-        memory_map.set_from_address(self.get_operand_address(addressing, memory_map), result_value);
+        let address = self.get_operand_address(addressing, memory_map);
+        memory_map.set_from_address(address, result_value);
         self.op_sbc_impl(result_value);
     }
 
@@ -252,7 +272,7 @@ impl Cpu{
         }
     }
 
-    pub fn op_bit(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
+    pub fn op_bit(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
         let address = self.get_operand_address(addressing, memory_map);
         let value = memory_map.get_from_address(address);
         if (value & 0x80) > 0 {
@@ -276,21 +296,21 @@ impl Cpu{
     }
 
 
-    pub fn op_and(&mut self, addressing: &Addressing, memory_map: &MemoryMap) {
+    pub fn op_and(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap) {
         let value = self.get_operand(addressing, memory_map);
         let result_value = self.reg_a & value;
         self.reg_a = result_value;
         self.eval_NZ(self.reg_a);
     }
 
-    pub fn op_eor(&mut self, addressing: &Addressing, memory_map: &MemoryMap) {
+    pub fn op_eor(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap) {
         let value = self.get_operand(addressing, memory_map);
         let result_value = self.reg_a ^ value;
         self.reg_a = result_value;
         self.eval_NZ(self.reg_a);
     }
 
-    pub fn op_ora(&mut self, addressing: &Addressing, memory_map: &MemoryMap) {
+    pub fn op_ora(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap) {
         let value = self.get_operand(addressing, memory_map);
         let result_value = self.reg_a | value;
         self.reg_a = result_value;
@@ -298,7 +318,7 @@ impl Cpu{
     }
 
 
-    pub fn op_adc(&mut self, addressing: &Addressing, memory_map: &MemoryMap) {
+    pub fn op_adc(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap) {
         let value = self.get_operand(addressing, memory_map);
         let carry = self.reg_p & 0x01;
         let result_value: u16 = (self.reg_a & 0xFF) as u16 + (value & 0xFF) as u16 + carry as u16;
@@ -320,7 +340,7 @@ impl Cpu{
         }
     }
 
-    pub fn op_sbc(&mut self, addressing: &Addressing, memory_map: &MemoryMap) {
+    pub fn op_sbc(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap) {
         let value = self.get_operand(addressing, memory_map);
         self.op_sbc_impl(value);
     }
@@ -356,7 +376,8 @@ impl Cpu{
     pub fn op_lsr_with_addressing(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
         let mut data: u8 = self.get_operand(addressing, memory_map);
         data = self.op_lsr_impl(data);
-        memory_map.set_from_address(self.get_operand_address(addressing, memory_map), data);
+        let address = self.get_operand_address(addressing, memory_map);
+        memory_map.set_from_address(address, data);
     }
 
     pub fn op_lsr_impl(&mut self, mut data: u8) -> u8{
@@ -380,7 +401,8 @@ impl Cpu{
     pub fn op_ror_with_addressing(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
         let mut data: u8 = self.get_operand(addressing, memory_map);
         data = self.op_ror_impl(data);
-        memory_map.set_from_address(self.get_operand_address(addressing, memory_map), data);
+        let address = self.get_operand_address(addressing, memory_map);
+        memory_map.set_from_address(address, data);
     }
 
     pub fn op_ror_impl(&mut self, mut data: u8) -> u8{
@@ -405,7 +427,8 @@ impl Cpu{
     pub fn op_rol_with_addressing(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap) {
         let mut data: u8 = self.get_operand(addressing, memory_map);
         data = self.op_rol_impl(data);
-        memory_map.set_from_address(self.get_operand_address(addressing, memory_map), data);
+        let address = self.get_operand_address(addressing, memory_map);
+        memory_map.set_from_address(address, data);
     }
 
     pub fn op_rol_impl(&mut self, mut data: u8) -> u8{
@@ -525,43 +548,47 @@ impl Cpu{
     }
 
     pub fn op_sta(&self, addressing: &Addressing, memory_map: &mut MemoryMap){
-        memory_map.set_from_address(self.get_operand_address(addressing, memory_map), self.reg_a);
+        let address = self.get_operand_address(addressing, memory_map);
+        memory_map.set_from_address(address, self.reg_a);
     }
 
     pub fn op_stx(&self, addressing: &Addressing, memory_map: &mut MemoryMap){
-        memory_map.set_from_address(self.get_operand_address(addressing, memory_map), self.reg_x);
+        let address = self.get_operand_address(addressing, memory_map);
+        memory_map.set_from_address(address, self.reg_x);
     }
 
     pub fn op_sty(&self, addressing: &Addressing, memory_map: &mut MemoryMap){
-        memory_map.set_from_address(self.get_operand_address(addressing, memory_map), self.reg_y);
+        let address = self.get_operand_address(addressing, memory_map);
+        memory_map.set_from_address(address, self.reg_y);
     }
     pub fn op_sax(&self, addressing: &Addressing, memory_map: &mut MemoryMap){
-        memory_map.set_from_address(self.get_operand_address(addressing, memory_map), (self.reg_a & self.reg_x) as u8);
+        let address = self.get_operand_address(addressing, memory_map);
+        memory_map.set_from_address(address, (self.reg_a & self.reg_x) as u8);
     }
 
-    pub fn op_lda(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
+    pub fn op_lda(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
         let operand: u8 = self.get_operand(addressing, memory_map);
         self.eval_NZ(operand);
         self.reg_a = operand;
     }
-    pub fn op_ldx(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
+    pub fn op_ldx(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
         let operand: u8 = self.get_operand(addressing, memory_map);
         self.eval_NZ(operand);
         self.reg_x = operand;
     }
-    pub fn op_ldy(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
+    pub fn op_ldy(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
         let operand: u8 = self.get_operand(addressing, memory_map);
         self.eval_NZ(operand);
         self.reg_y = operand;
     }
-    pub fn op_lax(&mut self, addressing: &Addressing, memory_map: &MemoryMap){
+    pub fn op_lax(&mut self, addressing: &Addressing, memory_map: &mut MemoryMap){
         let operand: u8 = self.get_operand(addressing, memory_map);
         self.eval_NZ(operand);
         self.reg_a = operand;
         self.reg_x = operand;
     }
 
-    pub fn op_bne(&mut self, memory_map: &MemoryMap){
+    pub fn op_bne(&mut self, memory_map: &mut MemoryMap){
         let zero_flag: bool = self.get_flag_z();
         if !zero_flag {
             let relative: u8 = self.getIm8(memory_map);
@@ -569,7 +596,7 @@ impl Cpu{
             self.program_counter = (self.program_counter as i32 + relative_ as i32) as u32;
         }
     }
-    pub fn op_bpl(&mut self, memory_map: &MemoryMap){
+    pub fn op_bpl(&mut self, memory_map: &mut MemoryMap){
         let negative_flag: bool = self.get_flag_n();
         if !negative_flag {
             let relative: u8 = self.getIm8(memory_map);
@@ -577,7 +604,7 @@ impl Cpu{
             self.program_counter = (self.program_counter as i32 + relative_ as i32) as u32;
         }
     }
-    pub fn op_bcc(&mut self, memory_map: &MemoryMap){
+    pub fn op_bcc(&mut self, memory_map: &mut MemoryMap){
         let carry_flag: bool = self.get_flag_c();
         if !carry_flag {
             let relative: u8 = self.getIm8(memory_map);
@@ -585,7 +612,7 @@ impl Cpu{
             self.program_counter = (self.program_counter as i32 + relative_ as i32) as u32;
         }
     }
-    pub fn op_bcs(&mut self, memory_map: &MemoryMap){
+    pub fn op_bcs(&mut self, memory_map: &mut MemoryMap){
         let carry_flag: bool = self.get_flag_c();
         if carry_flag {
             let relative: u8 = self.getIm8(memory_map);
@@ -593,7 +620,7 @@ impl Cpu{
             self.program_counter = (self.program_counter as i32 + relative_ as i32) as u32;
         }
     }
-    pub fn op_bvs(&mut self, memory_map: &MemoryMap){
+    pub fn op_bvs(&mut self, memory_map: &mut MemoryMap){
         let overflow_flag: bool = self.get_flag_v();
         if overflow_flag {
             let relative: u8 = self.getIm8(memory_map);
@@ -601,7 +628,7 @@ impl Cpu{
             self.program_counter = (self.program_counter as i32 + relative_ as i32) as u32;
         }
     }
-    pub fn op_bvc(&mut self, memory_map: &MemoryMap){
+    pub fn op_bvc(&mut self, memory_map: &mut MemoryMap){
         let overflow_flag: bool = self.get_flag_v();
         if !overflow_flag {
             let relative: u8 = self.getIm8(memory_map);
@@ -609,7 +636,7 @@ impl Cpu{
             self.program_counter = (self.program_counter as i32 + relative_ as i32) as u32;
         }
     }
-    pub fn op_bmi(&mut self, memory_map: &MemoryMap){
+    pub fn op_bmi(&mut self, memory_map: &mut MemoryMap){
         let negative_flag: bool = self.get_flag_n();
         if negative_flag {
             let relative: u8 = self.getIm8(memory_map);
@@ -617,7 +644,7 @@ impl Cpu{
             self.program_counter = (self.program_counter as i32 + relative_ as i32) as u32;
         }
     }
-    pub fn op_beq(&mut self, memory_map: &MemoryMap){
+    pub fn op_beq(&mut self, memory_map: &mut MemoryMap){
         let zero_flag: bool = self.get_flag_z();
         if zero_flag {
             let relative: u8 = self.getIm8(memory_map);
@@ -650,14 +677,14 @@ impl Cpu{
         memory_map.set_from_address(stack_address, value);
         self.reg_s = (self.reg_s - 1) as u8;
     }
-    pub fn op_plp(&mut self, memory_map: &MemoryMap){
+    pub fn op_plp(&mut self, memory_map: &mut MemoryMap){
         let stack_address: u32 = (0x100 as u16 + (self.reg_s & 0xFF) as u16 + 1) as u32;
         let mut value = memory_map.get_from_address(stack_address);
         self.set_reg_p(value);
         self.reg_s = (self.reg_s + 1) as u8;
     }
 
-    pub fn op_rts(&mut self, memory_map: &MemoryMap){
+    pub fn op_rts(&mut self, memory_map: &mut MemoryMap){
         let stack_address: u32 = (0x100 as u16 + (self.reg_s & 0xFF) as u16 + 1) as u32;
         let lower: u8 = memory_map.get_from_address(stack_address);
         let upper: u8 = memory_map.get_from_address(stack_address + 1);
@@ -666,7 +693,7 @@ impl Cpu{
         self.reg_s = (self.reg_s + 2) as u8;
     }
 
-    pub fn op_rti(&mut self, memory_map: &MemoryMap) {
+    pub fn op_rti(&mut self, memory_map: &mut MemoryMap) {
 
         // Pをpull
         let stack_address_p: u32 = (0x100 as u16 + (self.reg_s & 0xFF) as u16 + 1) as u32;
@@ -684,7 +711,7 @@ impl Cpu{
 
     }
 
-    pub fn op_pla(&mut self, memory_map: &MemoryMap){
+    pub fn op_pla(&mut self, memory_map: &mut MemoryMap){
         let address: u32 = (0x100 as u16 + (self.reg_s & 0xFF) as u16 + 1) as u32;
         let value: u8 = memory_map.get_from_address(address);
         self.reg_a = value;
@@ -697,11 +724,11 @@ impl Cpu{
         self.set_flag_b(true);
     }
 
-    pub fn opJMP_Abs(&mut self, memory_map: &MemoryMap){
+    pub fn opJMP_Abs(&mut self, memory_map: &mut MemoryMap){
         let absolute : u16 = self.getIm16(memory_map);
         self.program_counter = absolute as u32;
     }
-    pub fn opJMP_Indirect(&mut self, memory_map: &MemoryMap){
+    pub fn opJMP_Indirect(&mut self, memory_map: &mut MemoryMap){
         let address: u32 = self.get_operand_address(&Addressing::Indirect, memory_map);
         self.program_counter = address;
     }

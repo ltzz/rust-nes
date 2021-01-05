@@ -7,7 +7,6 @@ pub struct Ppu {
     pub ppu_addr_count: u8, //TODO: 直せたら直す
     pub ppu_addr: u16,
     pub bg_color_tables: Vec<Vec<u8>>,// [[u8; 64]; 4096],
-    pub sp_color_tables: Vec<Vec<u8>>,// [[u8; 64]; 4096],
     pub attribute_table_cache: [u8; 16*16] // 各16x16pixelの画面領域で使うパレット
     // TODO: PPURAMWrite作る ミラー領域とかの考慮のため
 }
@@ -57,7 +56,6 @@ impl Ppu {
             ppu_addr_count: 0,
             ppu_addr: 0,
             bg_color_tables: vec![vec![0u8; 64]; 0x1000],
-            sp_color_tables: vec![vec![0u8; 64]; 0x1000],
             attribute_table_cache: [0; 16*16]
         }
     }
@@ -71,8 +69,14 @@ impl Ppu {
         self.ppu_addr_count = (self.ppu_addr_count + 1) % 2;
     }
 
-    pub fn read_ppu_data(&self) -> u8{
-        return self.ppu_ram[self.ppu_addr as usize];
+    pub fn read_ppu_data(&mut self) -> u8{
+        let ret_data = self.ppu_ram[self.ppu_addr as usize];
+        let mut address_inc = 1;
+        if (self.ppu_reg[0] & 0x04) > 0 { // $2000の値によって32byteインクリメント
+            address_inc = 32;
+        }
+        self.ppu_addr += address_inc;
+        return ret_data;
     }
 
     pub fn write_ppu_data(&mut self){
@@ -133,51 +137,14 @@ impl Ppu {
         let bg_offset_addr: u32 = if (self.ppu_reg[0] & 0x10) > 0 {0x1000} else {0};
         let sp_offset_addr: u32 = if (self.ppu_reg[0] & 0x08) > 0 {0x1000} else {0};
         for tile_id in 0..0x100{
-            let tile_id_offset_address = tile_id * 16;
-
-            for chr_index in 0..8{ // 前半
-                let chr_value = rom.chr_rom[(bg_offset_addr + tile_id_offset_address + chr_index)as usize];
-                let y_cache_index = chr_index * 8;
-                for xIndex in 0..8{
-                    let shift = 7 - xIndex;
-                    self.bg_color_tables[tile_id as usize][(y_cache_index + xIndex) as usize] = (chr_value & (1 << shift)) >> shift;
-                }
-            }
-            for chr_index in 0..8{ // 後半
-                let chr_value = rom.chr_rom[(bg_offset_addr + tile_id_offset_address + 8 + chr_index)as usize];
-                let y_cache_index = chr_index * 8;
-                for xIndex in 0..8{
-                    let shift = 7 - xIndex;
-                    self.bg_color_tables[tile_id as usize][(y_cache_index + xIndex) as usize] += ((chr_value & (1 << shift)) >> shift) * 2;
-                }
-            }
-        }
-        for tile_id in 0..0x100{
-            let tile_id_offset_address = tile_id * 16;
-
-            for chr_index in 0..8{ // 前半
-                let chr_value = rom.chr_rom[(sp_offset_addr + tile_id_offset_address + chr_index)as usize];
-                let y_cache_index = chr_index * 8;
-                for xIndex in 0..8{
-                    let shift = 7 - xIndex;
-                    self.sp_color_tables[tile_id as usize][(y_cache_index + xIndex) as usize] = (chr_value & (1 << shift)) >> shift;
-                }
-            }
-            for chr_index in 0..8{ // 後半
-                let chr_value = rom.chr_rom[(sp_offset_addr + tile_id_offset_address + 8 + chr_index)as usize];
-                let y_cache_index = chr_index * 8;
-                for xIndex in 0..8{
-                    let shift = 7 - xIndex;
-                    self.sp_color_tables[tile_id as usize][(y_cache_index + xIndex) as usize] += ((chr_value & (1 << shift)) >> shift) * 2;
-                }
-            }
+            self.bg_color_tables[tile_id as usize] = build_tile(tile_id as u8, bg_offset_addr, &rom.chr_rom);
         }
     }
 
     pub fn next_cycle(&mut self, frame_buffer: &mut [u8], rom: &Rom){
         self.refresh_attribute_table();
         self.refresh_color_tables(rom);
-        self.draw(frame_buffer);
+        self.draw(frame_buffer, &rom.chr_rom);
     }
     
     fn get_bg_color_id(&self, palette: i32, num: i32) -> u8{
@@ -190,7 +157,7 @@ impl Ppu {
         return self.ppu_ram[(PALETTE_TABLE_SP_ADDR + 4 * palette + num) as usize];
     }
 
-    pub fn draw(&self, frame_buffer: &mut [u8]){
+    pub fn draw(&self, frame_buffer: &mut [u8], chr_rom: &[u8]){
         const BLOCK_WIDTH: u32 = 256 / 8;
         let main_screen = self.ppu_reg[0] & 0x03;
         let start_addr = 0x2000 + (main_screen as u16 * 0x400);
@@ -226,43 +193,87 @@ impl Ppu {
 
 
         // Sprite描画
+        let offset_addr_glob: u32 = if (self.ppu_reg[0] & 0x08) > 0 {0x1000} else {0};
         for sprite_addr in (0..0x100).step_by(4) {
             let tile_y       = self.ppu_oam[sprite_addr + 0] & 0xFF;
             let tile_x       = self.ppu_oam[sprite_addr + 3] & 0xFF;
             if tile_y >= 240 {
                 break;
             }
-
-            let mut tile_id = 0x00;
+            
             if (self.ppu_reg[0] & 0x20) > 0 { // スプライトサイズ8 * 16の場合
-                tile_id = self.ppu_oam[sprite_addr + 1] & 0xF7;
-                // TODO: スプライト下半分の処理
-                // tileId = (ppuOAM[spriteAddr + 1] & 0xF7) | 1;
+                let tile_id_top = self.ppu_oam[sprite_addr + 1] & 0xFE;
+                let tile_id_bottom = (self.ppu_oam[sprite_addr + 1] & 0xFE) | 1;
+                
+                // レジスタ $2000 によるパターンテーブル選択を無視する
+                let pattern_table = self.ppu_oam[sprite_addr + 1] & 0x01;
+                let offset_addr = if pattern_table > 0 {0x1000} else {0};
+                
+                let attr    = self.ppu_oam[sprite_addr + 2] & 0xFF;
+                if tile_id_top > 0 {
+                    let tile = build_tile(tile_id_top, offset_addr, chr_rom);
+                    self.draw_sprite(attr, &tile, tile_x, tile_y, frame_buffer)
+                }
+                if tile_id_bottom > 0 {
+                    let tile = build_tile(tile_id_bottom, offset_addr, chr_rom);
+                    self.draw_sprite(attr, &tile, tile_x, tile_y, frame_buffer)
+                }
+
             }
             else {
-                tile_id = self.ppu_oam[sprite_addr + 1] & 0xFF;
-            }
-            let attr    = self.ppu_oam[sprite_addr + 2] & 0xFF;
-            if tile_id > 0 {
-                let palette = attr & 0x03;
-
-                for color_table_index in 0..64 {
-                    let x = tile_x + (color_table_index % 8);
-                    let y = tile_y + (color_table_index / 8);
-                    let tmp = self.sp_color_tables[tile_id as usize][color_table_index as usize] & 0xFF;
-                    
-                    let color_id = self.get_sp_color_id(palette.into(), tmp.into());
-                    if color_id > 0 { // 背景色ではない
-                        let r = COLOR_PALETTE[(color_id * 3 + 0) as usize];
-                        let g = COLOR_PALETTE[(color_id * 3 + 1) as usize];
-                        let b = COLOR_PALETTE[(color_id * 3 + 2) as usize];
-                        let frame_buffer_index = y as u16 * 256 + x as u16;
-                        frame_buffer[(frame_buffer_index * 4 + 0) as usize] = r;
-                        frame_buffer[(frame_buffer_index * 4 + 1) as usize] = g;
-                        frame_buffer[(frame_buffer_index * 4 + 2) as usize] = b;
-                    }
+                let tile_id = self.ppu_oam[sprite_addr + 1] & 0xFF;
+                let attr    = self.ppu_oam[sprite_addr + 2] & 0xFF;
+                
+                if tile_id > 0 {
+                    let tile = build_tile(tile_id, offset_addr_glob, chr_rom);
+                    self.draw_sprite(attr, &tile, tile_x, tile_y, frame_buffer)
                 }
             }
         }
     }
+
+    fn draw_sprite(&self, attr: u8, tile: &[u8], tile_x: u8, tile_y: u8, frame_buffer: &mut [u8]){
+        let palette = attr & 0x03;
+        for color_table_index in 0..64 {
+            let x = tile_x + (color_table_index % 8);
+            let y = tile_y + (color_table_index / 8);
+            let tmp = tile[color_table_index as usize] & 0xFF;
+            
+            let color_id = self.get_sp_color_id(palette.into(), tmp.into());
+            if color_id > 0 { // 背景色ではない
+                let r = COLOR_PALETTE[(color_id * 3 + 0) as usize];
+                let g = COLOR_PALETTE[(color_id * 3 + 1) as usize];
+                let b = COLOR_PALETTE[(color_id * 3 + 2) as usize];
+                let frame_buffer_index = y as u16 * 256 + x as u16;
+                frame_buffer[(frame_buffer_index * 4 + 0) as usize] = r;
+                frame_buffer[(frame_buffer_index * 4 + 1) as usize] = g;
+                frame_buffer[(frame_buffer_index * 4 + 2) as usize] = b;
+            }
+        }
+    }
+}
+
+
+fn build_tile(tile_id: u8, offset_addr: u32, chr_rom: &[u8]) -> Vec<u8>{
+    let tile_id_offset_address = tile_id as u32 * 16;
+
+    let mut color_tables = vec![0u8; 64];
+
+    for chr_index in 0..8{ // 前半
+        let chr_value = chr_rom[(offset_addr + tile_id_offset_address + chr_index)as usize];
+        let y_cache_index = chr_index * 8;
+        for xIndex in 0..8{
+            let shift = 7 - xIndex;
+            color_tables[(y_cache_index + xIndex) as usize] = (chr_value & (1 << shift)) >> shift;
+        }
+    }
+    for chr_index in 0..8{ // 後半
+        let chr_value = chr_rom[(offset_addr + tile_id_offset_address + 8 + chr_index)as usize];
+        let y_cache_index = chr_index * 8;
+        for xIndex in 0..8{
+            let shift = 7 - xIndex;
+            color_tables[(y_cache_index + xIndex) as usize] += ((chr_value & (1 << shift)) >> shift) * 2;
+        }
+    }
+    color_tables
 }

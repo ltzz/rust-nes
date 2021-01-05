@@ -12,7 +12,7 @@ impl MemoryMap {
         MemoryMap{rom, wram, ppu}
     }
 
-    pub fn get_from_address(&self, address: u32) -> u8{
+    pub fn get_from_address(&mut self, address: u32) -> u8{
         if 0x0000 <= address && address < 0x2000 {
             //WRAM MIRROR * 3
             return self.wram[(address % 0x800) as usize];
@@ -89,21 +89,21 @@ impl MemoryMap {
     }
 
     
-    pub fn get_from_address16(&self, address: u32) -> u16{
+    pub fn get_from_address16(&mut self, address: u32) -> u16{
         let lower = self.get_from_address(address + 0) & 0xFF;
         let upper = self.get_from_address(address + 1) & 0xFF;
         let value: u16 = ((upper as u16) << 8) as u16 | lower as u16;
         return value;
     }
     
-    pub fn get_from_address16_by_address8(&self, address: u8) -> u16{
+    pub fn get_from_address16_by_address8(&mut self, address: u8) -> u16{
         let lower = self.get_from_address(((address + 0) & 0xFF) as u32) & 0xFF;
         let upper = self.get_from_address(((address.wrapping_add(1)) & 0xFF) as u32) & 0xFF;
         let value: u16 = ((upper as u16) << 8) as u16 | lower as u16;
         return value;
     }
 
-    pub fn get_from_address_in_page(&self, address: u32) -> u16{
+    pub fn get_from_address_in_page(&mut self, address: u32) -> u16{
         let page = address >> 8;
         let lower = self.get_from_address((page << 8) | (address + 0) & 0xFF) & 0xFF;
         let upper = self.get_from_address((page << 8) | (address + 1) & 0xFF) & 0xFF;

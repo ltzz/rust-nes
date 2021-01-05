@@ -67,7 +67,7 @@ pub fn run() -> Result<(), JsValue>  {
 
     let mut i = 0;
     *g.borrow_mut() = Some(Closure::wrap(Box::new(move || {
-        if i > 15000 {
+        if i > 30000 {
 
             // Drop our handle to this closure so that it will get cleaned
             // up once we return.
@@ -174,9 +174,10 @@ pub fn draw(ctx: &CanvasRenderingContext2d, step: i32) -> Result<(), JsValue> {
             Some(s) => s,
             None => 0
         };
-        ctx.fill_text(&size.to_string(), 40.0, 245.0);
+        ctx.put_image_data(&ImageData::new_with_u8_clamped_array_and_sh(Clamped(&mut [0; 50*10*4]), 50, 10)?, 10.0, 240.0);
+        ctx.fill_text(&size.to_string(), 40.0, 248.0);
     }
-    ctx.fill_text(&step.to_string(), 10.0, 245.0)
+    ctx.fill_text(&step.to_string(), 10.0, 248.0)
 }
 
 #[wasm_bindgen]
