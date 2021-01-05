@@ -148,7 +148,7 @@ impl Ppu {
                 let y_cache_index = chr_index * 8;
                 for xIndex in 0..8{
                     let shift = 7 - xIndex;
-                    self.bg_color_tables[tile_id as usize][(y_cache_index + xIndex) as usize] = ((chr_value & (1 << shift)) >> shift) * 2;
+                    self.bg_color_tables[tile_id as usize][(y_cache_index + xIndex) as usize] += ((chr_value & (1 << shift)) >> shift) * 2;
                 }
             }
         }
@@ -168,7 +168,7 @@ impl Ppu {
                 let y_cache_index = chr_index * 8;
                 for xIndex in 0..8{
                     let shift = 7 - xIndex;
-                    self.sp_color_tables[tile_id as usize][(y_cache_index + xIndex) as usize] = ((chr_value & (1 << shift)) >> shift) * 2;
+                    self.sp_color_tables[tile_id as usize][(y_cache_index + xIndex) as usize] += ((chr_value & (1 << shift)) >> shift) * 2;
                 }
             }
         }
