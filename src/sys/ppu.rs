@@ -167,27 +167,35 @@ impl Ppu {
         for addr in start_addr..end_addr {
             let tile_id = self.ppu_ram[addr as usize];
             if tile_id > 0 {
-                let offset_block_x = (addr - 0x2000) as u32 % BLOCK_WIDTH;
-                let offset_block_y = (addr - 0x2000) as u32 / BLOCK_WIDTH;
+                let offset_block_x = (addr - start_addr) as u32 % BLOCK_WIDTH;
+                let offset_block_y = (addr - start_addr) as u32 / BLOCK_WIDTH;
                 let offset_x = offset_block_x * 8;
                 let offset_y = offset_block_y * 8;
-                // 8x8の描画
-                for color_table_index in 0..64 {
-                    let x = offset_x + (color_table_index % 8);
-                    let y = offset_y + (color_table_index / 8);
-                    let attX = offset_x % 16;
-                    let attY = offset_y / 16;
-                    let palette = self.attribute_table_cache[(attX * 16 + attY) as usize];
-                    let frame_buffer_index = y * 256 + x;
-                    let tmp = self.bg_color_tables[tile_id as usize][color_table_index as usize] & 0xFF;
-                    let color_id = self.get_bg_color_id(palette.into(), tmp.into());
-                    let r = COLOR_PALETTE[(color_id * 3 + 0) as usize];
-                    let g = COLOR_PALETTE[(color_id * 3 + 1) as usize];
-                    let b = COLOR_PALETTE[(color_id * 3 + 2) as usize];
-                    frame_buffer[(frame_buffer_index * 4 + 0) as usize] = r;
-                    frame_buffer[(frame_buffer_index * 4 + 1) as usize] = g;
-                    frame_buffer[(frame_buffer_index * 4 + 2) as usize] = b;
-                }
+
+                let tile = &self.bg_color_tables[tile_id as usize];
+                let attX = offset_x % 16;
+                let attY = offset_y / 16;
+                let palette = self.attribute_table_cache[(attX * 16 + attY) as usize];
+
+                self.draw_bg(palette, tile, offset_x as u8, offset_y as u8, frame_buffer);
+
+                // // 8x8の描画
+                // for color_table_index in 0..64 {
+                //     let x = offset_x + (color_table_index % 8);
+                //     let y = offset_y + (color_table_index / 8);
+                //     let attX = offset_x % 16;
+                //     let attY = offset_y / 16;
+                //     let palette = self.attribute_table_cache[(attX * 16 + attY) as usize];
+                //     let frame_buffer_index = y * 256 + x;
+                //     let tmp = self.bg_color_tables[tile_id as usize][color_table_index as usize] & 0xFF;
+                //     let color_id = self.get_bg_color_id(palette.into(), tmp.into());
+                //     let r = COLOR_PALETTE[(color_id * 3 + 0) as usize];
+                //     let g = COLOR_PALETTE[(color_id * 3 + 1) as usize];
+                //     let b = COLOR_PALETTE[(color_id * 3 + 2) as usize];
+                //     frame_buffer[(frame_buffer_index * 4 + 0) as usize] = r;
+                //     frame_buffer[(frame_buffer_index * 4 + 1) as usize] = g;
+                //     frame_buffer[(frame_buffer_index * 4 + 2) as usize] = b;
+                // }
             }
         }
 
@@ -201,6 +209,8 @@ impl Ppu {
                 break;
             }
             
+            let attr    = self.ppu_oam[sprite_addr + 2] & 0xFF;
+            let palette = attr & 0x03;
             if (self.ppu_reg[0] & 0x20) > 0 { // スプライトサイズ8 * 16の場合
                 let tile_id_top = self.ppu_oam[sprite_addr + 1] & 0xFE;
                 let tile_id_bottom = (self.ppu_oam[sprite_addr + 1] & 0xFE) | 1;
@@ -209,31 +219,29 @@ impl Ppu {
                 let pattern_table = self.ppu_oam[sprite_addr + 1] & 0x01;
                 let offset_addr = if pattern_table > 0 {0x1000} else {0};
                 
-                let attr    = self.ppu_oam[sprite_addr + 2] & 0xFF;
                 if tile_id_top > 0 {
                     let tile = build_tile(tile_id_top, offset_addr, chr_rom);
-                    self.draw_sprite(attr, &tile, tile_x, tile_y, frame_buffer)
+                    self.draw_sprite(palette, &tile, tile_x, tile_y, frame_buffer)
                 }
                 if tile_id_bottom > 0 {
                     let tile = build_tile(tile_id_bottom, offset_addr, chr_rom);
-                    self.draw_sprite(attr, &tile, tile_x, tile_y, frame_buffer)
+                    self.draw_sprite(palette, &tile, tile_x, tile_y, frame_buffer)
                 }
 
             }
             else {
                 let tile_id = self.ppu_oam[sprite_addr + 1] & 0xFF;
-                let attr    = self.ppu_oam[sprite_addr + 2] & 0xFF;
+
                 
                 if tile_id > 0 {
                     let tile = build_tile(tile_id, offset_addr_glob, chr_rom);
-                    self.draw_sprite(attr, &tile, tile_x, tile_y, frame_buffer)
+                    self.draw_sprite(palette, &tile, tile_x, tile_y, frame_buffer)
                 }
             }
         }
     }
 
-    fn draw_sprite(&self, attr: u8, tile: &[u8], tile_x: u8, tile_y: u8, frame_buffer: &mut [u8]){
-        let palette = attr & 0x03;
+    fn draw_sprite(&self, palette: u8, tile: &[u8], tile_x: u8, tile_y: u8, frame_buffer: &mut [u8]){
         for color_table_index in 0..64 {
             let x = tile_x + (color_table_index % 8);
             let y = tile_y + (color_table_index / 8);
@@ -244,11 +252,28 @@ impl Ppu {
                 let r = COLOR_PALETTE[(color_id * 3 + 0) as usize];
                 let g = COLOR_PALETTE[(color_id * 3 + 1) as usize];
                 let b = COLOR_PALETTE[(color_id * 3 + 2) as usize];
-                let frame_buffer_index = y as u16 * 256 + x as u16;
+                let frame_buffer_index: u32 = (y as u16 * 256 + x as u16) as u32;
                 frame_buffer[(frame_buffer_index * 4 + 0) as usize] = r;
                 frame_buffer[(frame_buffer_index * 4 + 1) as usize] = g;
                 frame_buffer[(frame_buffer_index * 4 + 2) as usize] = b;
             }
+        }
+    }
+
+    fn draw_bg(&self, palette: u8, tile: &[u8], tile_x: u8, tile_y: u8, frame_buffer: &mut [u8]){
+        for color_table_index in 0..64 {
+            let x = tile_x  + (color_table_index % 8);
+            let y = tile_y + (color_table_index / 8);
+            let tmp = tile[color_table_index as usize] & 0xFF;
+            
+            let color_id = self.get_bg_color_id(palette.into(), tmp.into());
+            let r = COLOR_PALETTE[(color_id * 3 + 0) as usize];
+            let g = COLOR_PALETTE[(color_id * 3 + 1) as usize];
+            let b = COLOR_PALETTE[(color_id * 3 + 2) as usize];
+            let frame_buffer_index: u32 = (y as u16 * 256 + x as u16) as u32;
+            frame_buffer[(frame_buffer_index * 4 + 0) as usize] = r;
+            frame_buffer[(frame_buffer_index * 4 + 1) as usize] = g;
+            frame_buffer[(frame_buffer_index * 4 + 2) as usize] = b;
         }
     }
 }
