@@ -182,11 +182,8 @@ pub fn draw(ctx: &CanvasRenderingContext2d, step: i32) -> Result<(), JsValue> {
 
 #[wasm_bindgen]
 pub fn set_rom(buf: &mut [u8]) -> String {
-    // TODO
-    // dbg!(buf);
     let rom = load_cartridge(buf);
     let str = format!("prg_rom {}bytes\nchr_rom {}bytes\n", rom.prg_rom.len(), rom.chr_rom.len());
-
 
     unsafe{
         let mut option = &mut testtest;
@@ -195,7 +192,6 @@ pub fn set_rom(buf: &mut [u8]) -> String {
         test1.set_system(Nes::new(rom));
         test1.set_state(AppState::READY);
     }
-    // sys::system::Nes::new(rom);
 
     str
 }

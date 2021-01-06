@@ -135,7 +135,6 @@ impl Ppu {
 
     pub fn refresh_color_tables(&mut self, rom: &Rom){
         let bg_offset_addr: u32 = if (self.ppu_reg[0] & 0x10) > 0 {0x1000} else {0};
-        let sp_offset_addr: u32 = if (self.ppu_reg[0] & 0x08) > 0 {0x1000} else {0};
         for tile_id in 0..0x100{
             self.bg_color_tables[tile_id as usize] = build_tile(tile_id as u8, bg_offset_addr, &rom.chr_rom);
         }
