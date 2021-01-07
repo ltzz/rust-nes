@@ -51,6 +51,11 @@ impl Cpu{
     pub fn set_flag_i(&mut self, value: bool){
         self.setP(value, 2);
     }
+    pub fn get_flag_i(&mut self) -> bool{
+        let interrupt_flag : bool = !((self.reg_p & 0x04) == 0);
+        return interrupt_flag;
+    }
+
     pub fn set_flag_b(&mut self, value: bool){
         self.setP(value, 4);
     }
@@ -772,6 +777,11 @@ impl Cpu{
             0x78 =>//SEI:IRQ割り込みの禁止(1バイト/2サイクル)
             {
                 self.set_flag_i(true);
+                self.program_counter += 1;
+            },
+            0x58 =>//CLI:IRQ割り込みの許可(1バイト/2サイクル)
+            {
+                self.set_flag_i(false);
                 self.program_counter += 1;
             },
             0xA9 =>//LDA(Immediate):メモリからAにロード(2バイト/2サイクル)
@@ -1823,4 +1833,27 @@ impl Cpu{
             }
         }
     }
+}
+
+
+fn push_stack(cpu: &mut Cpu, value: u8, memory_map: &mut MemoryMap){
+    let stack_address: u32 = (0x100 as u16 | cpu.reg_s as u16) as u32;
+    memory_map.set_from_address(stack_address, value);
+    cpu.reg_s = cpu.reg_s.wrapping_sub(1) as u8;
+}
+
+pub fn make_nmi_interrupt(cpu: &mut Cpu, memory_map: &mut MemoryMap){
+    if cpu.get_flag_i(){
+        // 割り込み禁止中
+        return;
+    }
+
+    let upper = (cpu.program_counter >> 8) as u8;
+    push_stack(cpu, upper, memory_map);
+    let lower = (cpu.program_counter) as u8;
+    push_stack(cpu, lower, memory_map);
+    cpu.set_flag_i(true);
+    cpu.set_flag_b(false); // TODO: これ必要？
+    let next_program_counter = memory_map.get_from_address16(0xFFFA);
+    cpu.program_counter = next_program_counter as u32;
 }

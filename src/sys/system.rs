@@ -3,7 +3,8 @@ use super::{cpu::Cpu, memory_map::MemoryMap, ppu::Ppu, rom::Rom};
 pub struct Nes {
     pub memory_map: MemoryMap,
     pub cpu: Cpu,
-    pub frame_buffer: Vec<u8>
+    pub frame_buffer: Vec<u8>,
+    pub cycle_acc: u32
 }
 
 impl Nes {
@@ -20,7 +21,7 @@ impl Nes {
             }
         }
 
-        Nes{memory_map, cpu, frame_buffer}
+        Nes{memory_map, cpu, frame_buffer, cycle_acc: 0}
     }
 
     pub fn reset(&mut self){
@@ -33,6 +34,9 @@ impl Nes {
 
     pub fn execute(&mut self){
         self.cpu.next_cycle(&mut self.memory_map);
-        self.memory_map.ppu.next_cycle(&mut self.frame_buffer, &self.memory_map.rom);
+        if self.cycle_acc % 3 == 0 {
+            self.memory_map.ppu_next_cycle(&mut self.frame_buffer, &mut self.cpu);
+        }
+        self.cycle_acc += 1;
     }
 }

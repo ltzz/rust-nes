@@ -1,4 +1,4 @@
-use super::{ppu::Ppu, rom::Rom};
+use super::{cpu::{Cpu, make_nmi_interrupt}, ppu::Ppu, rom::Rom};
 
 pub struct MemoryMap {
     pub rom: Rom,
@@ -19,8 +19,17 @@ impl MemoryMap {
         }
         else if address < 0x2008 {
             // ppu i/o
-            if address == 0x2002 {
+            if address == 0x2000 {
+                return self.ppu.ppu_reg[0];
+            }
+            else if address == 0x2001 {
+                return self.ppu.ppu_reg[1];
+            }
+            else if address == 0x2002 {
                 return self.ppu.ppu_reg[2];
+            }
+            else if address == 0x2004 {
+                return self.ppu.read_oam_data();
             }
             else if address == 0x2006 {
             }
@@ -109,6 +118,23 @@ impl MemoryMap {
         let upper = self.get_from_address((page << 8) | (address + 1) & 0xFF) & 0xFF;
         let value: u16 = ((upper as u16) << 8) as u16 | lower as u16;
         return value;
+    }
+
+    pub fn ppu_next_cycle(&mut self, frame_buffer: &mut [u8], cpu: &mut Cpu){
+        self.ppu.next_cycle(frame_buffer, &self.rom);
+        if self.ppu.current_line == 241 {
+            // VBLANKフラグ=1
+            self.ppu.ppu_reg[0] |= 0x80;
+            // nmi割り込み
+            make_nmi_interrupt(cpu, self)
+        }
+        if self.ppu.current_line == 261 {
+            // VBLANKフラグ=0
+            self.ppu.ppu_reg[0] &= 0x7F;
+        }
+        if self.ppu.current_line == 341 {
+            self.ppu.current_line = 0;
+        }
     }
 }
 
