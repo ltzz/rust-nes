@@ -31,6 +31,9 @@ impl MemoryMap {
             else if address == 0x2004 {
                 return self.ppu.read_oam_data();
             }
+            else if address == 0x2005 {
+                return self.ppu.ppu_reg[5];
+            }
             else if address == 0x2006 {
             }
             else if address == 0x2007 {
@@ -75,7 +78,10 @@ impl MemoryMap {
         } else if address < 0x2008 {
             // ppu i/o
             self.ppu.ppu_reg[(address - 0x2000) as usize] = value;
-            if address == 0x2006 {
+            if address == 0x2005 {
+                self.ppu.write_ppu_scroll();
+            }
+            else if address == 0x2006 {
                 self.ppu.write_ppu_addr();
             }
             else if address == 0x2007 {

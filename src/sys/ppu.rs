@@ -6,6 +6,9 @@ pub struct Ppu {
     pub ppu_reg: [u8; 8],
     pub ppu_addr_count: u8, //TODO: 直せたら直す
     pub ppu_addr: u16,
+    pub ppu_scroll_count: u8, //TODO: 直せたら直す
+    pub scroll_x: u8,
+    pub scroll_y: u8,
     pub attribute_table_cache: [u8; 16*16], // 各16x16pixelの画面領域で使うパレット
     pub current_line: u16
     // TODO: PPURAMWrite作る ミラー領域とかの考慮のため
@@ -55,6 +58,9 @@ impl Ppu {
             ppu_reg: [0; 8],
             ppu_addr_count: 0,
             ppu_addr: 0,
+            ppu_scroll_count: 0,
+            scroll_x: 0,
+            scroll_y: 0,
             attribute_table_cache: [0; 16*16],
             current_line: 241
         }
@@ -67,6 +73,15 @@ impl Ppu {
             self.ppu_addr = (self.ppu_addr | (self.ppu_reg[6] & 0xFF) as u16) as u16
         }
         self.ppu_addr_count = (self.ppu_addr_count + 1) % 2;
+    }
+
+    pub fn write_ppu_scroll(&mut self){
+        if self.ppu_scroll_count == 0 {
+            self.scroll_x = self.ppu_reg[5];
+        } else if self.ppu_scroll_count == 1 {
+            self.scroll_y = self.ppu_reg[5];
+        }
+        self.ppu_scroll_count = (self.ppu_scroll_count + 1) % 2;
     }
 
     pub fn read_ppu_data(&mut self) -> u8{
@@ -157,7 +172,7 @@ impl Ppu {
     }
 
     pub fn draw(&self, frame_buffer: &mut [u8], chr_rom: &[u8]){
-        const BLOCK_WIDTH: u32 = 256 / 8;
+        const BLOCK_WIDTH: i32 = 256 / 8;
         let bg_offset_addr: u32 = if (self.ppu_reg[0] & 0x10) > 0 {0x1000} else {0};
         let main_screen = self.ppu_reg[0] & 0x03;
         let start_addr = 0x2000 + (main_screen as u16 * 0x400);
@@ -167,10 +182,10 @@ impl Ppu {
         for addr in start_addr..end_addr {
             let tile_id = self.ppu_ram[addr as usize];
             if tile_id > 0 {
-                let offset_block_x = (addr - start_addr) as u32 % BLOCK_WIDTH;
-                let offset_block_y = (addr - start_addr) as u32 / BLOCK_WIDTH;
-                let offset_x = offset_block_x * 8;
-                let offset_y = offset_block_y * 8;
+                let offset_block_x = (addr - start_addr) as i32 % BLOCK_WIDTH;
+                let offset_block_y = (addr - start_addr) as i32 / BLOCK_WIDTH;
+                let offset_x = offset_block_x * 8 - self.scroll_x as i32;
+                let offset_y = offset_block_y * 8 - self.scroll_y as i32;
 
                 // if self.current_line < offset_y as u16 || offset_y as u16 + 8 <= self.current_line {
                 //     break; // FIXME: 暫定処理
@@ -181,7 +196,9 @@ impl Ppu {
                 let attY = offset_y / 16;
                 let palette = self.attribute_table_cache[(attX * 16 + attY) as usize];
 
-                self.draw_bg(palette, &tile, offset_x as u8, offset_y as u8, frame_buffer);
+                if 0 <= offset_x && 0 <= offset_y {
+                    self.draw_bg(palette, &tile, offset_x as u8, offset_y as u8, frame_buffer);
+                }
             }
         }
 
@@ -189,8 +206,8 @@ impl Ppu {
         // Sprite描画
         let offset_addr_glob: u32 = if (self.ppu_reg[0] & 0x08) > 0 {0x1000} else {0};
         for sprite_addr in (0..0x100).step_by(4) {
-            let tile_y       = self.ppu_oam[sprite_addr + 0] & 0xFF;
-            let tile_x       = self.ppu_oam[sprite_addr + 3] & 0xFF;
+            let tile_y       = (self.ppu_oam[sprite_addr + 0] & 0xFF) as i32 - self.scroll_x as i32;
+            let tile_x       = (self.ppu_oam[sprite_addr + 3] & 0xFF) as i32 - self.scroll_y as i32;
             if tile_y >= 240 {
                 break;
             }
@@ -207,11 +224,15 @@ impl Ppu {
                 
                 if tile_id_top > 0 {
                     let tile = build_tile(tile_id_top, offset_addr, chr_rom);
-                    self.draw_sprite(palette, &tile, tile_x, tile_y, frame_buffer);
+                    if 0 <= tile_x && 0 <= tile_y {
+                        self.draw_sprite(palette, &tile, tile_x as u8, tile_y as u8, frame_buffer);
+                    }
                 }
                 if tile_id_bottom > 0 {
                     let tile = build_tile(tile_id_bottom, offset_addr, chr_rom);
-                    self.draw_sprite(palette, &tile, tile_x, tile_y, frame_buffer);
+                    if 0 <= tile_x && 0 <= tile_y {
+                        self.draw_sprite(palette, &tile, tile_x as u8, tile_y as u8, frame_buffer);
+                    }
                 }
 
             }
@@ -220,7 +241,9 @@ impl Ppu {
                 
                 if tile_id > 0 {
                     let tile = build_tile(tile_id, offset_addr_glob, chr_rom);
-                    self.draw_sprite(palette, &tile, tile_x, tile_y, frame_buffer);
+                    if 0 <= tile_x && 0 <= tile_y {
+                        self.draw_sprite(palette, &tile, tile_x as u8, tile_y as u8, frame_buffer);
+                    }
                 }
             }
         }
